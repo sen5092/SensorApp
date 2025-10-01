@@ -1,0 +1,15 @@
+# Ignore VS Code config files
+.vscode/
+
+# Ignore CMake build directory
+build/
+
+# Ignore externally fetched libraries
+external/
+
+# macOS system files (optional but helpful)
+.DS_Store
+
+# Ignore compiled object files and executables
+*.profraw
+*.profdata

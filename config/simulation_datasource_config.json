@@ -1,0 +1,17 @@
+{
+  "limits": {
+    "temperature": {
+      "fixed": 72.0
+    },
+    "humidity": {
+      "min": 20,
+      "max": 60,
+      "bad_probability": 0.02
+    },
+    "pressure": {
+      "min": 990,
+      "max": 1025,
+      "bad_probability": 0.01
+    }
+  }
+}

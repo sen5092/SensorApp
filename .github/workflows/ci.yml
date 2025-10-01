@@ -1,0 +1,50 @@
+name: Build, Analyze, and Test
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build-and-analyze:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up LLVM and dependencies
+        run: |
+          brew install llvm cmake
+          echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Build with coverage enabled (coverage enabled by default)
+        run: ./scripts/build.sh
+
+      - name: Generate code coverage report
+        run: ./scripts/coverage.sh
+
+      - name: Run static analysis (clang-tidy and CSA)
+        run: ./scripts/analyze.sh --tidy --csa
+
+      - name: Run tests
+        run: ./build/tests/PracticeTests
+
+      - name: Run format check
+        run: ./scripts/format.sh --check
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/tests/coverage.txt
+
+      - name: Upload static analysis reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis
+          path: build/reports/
