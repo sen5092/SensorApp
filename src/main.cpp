@@ -10,15 +10,22 @@ using namespace std;
 
 
 #include "TcpSocket.hpp"
+#include "Logger.hpp"
+#include "Sensor.hpp"
+#include "TransportFactory.hpp"
+#include "UdpSocket.hpp"
+#include "UdpTransport.hpp"
+#include "TcpTransport.hpp"
+#include <cstdlib>  // std::getenv
 #include <exception>
 #include <string>
 #include "ConfigLoader.hpp"
 #include "ConfigTypes.hpp"
 
-#ifdef SIMULATION
-  #include "SimulationDataSource.hpp"
-#else
+#ifdef USE_OPENCV
   #include "HardwareDataSource.hpp"
+#else
+  #include "SimulationDataSource.hpp"
 #endif
 
 // Default config paths (next to the executable after CMake copy)
@@ -50,22 +57,33 @@ int main(int argc, const char* argv[]) {
 
     
 
-#ifdef SIMULATION
+#ifdef USE_OPENCV
+  HardwareDataSource ds;
+#else
     const std::string dataSourceCfgPath= envOrDefault("DATASOURCE_CONFIG", kDefaultDataSourceCfg);
     SimulationDataSource ds(dataSourceCfgPath);
-#else
-    HardwareDataSource ds(dataSourceCfgPath);  // if your HW impl takes a config
 #endif
 
     ConfigLoader loader;
-    const auto sensorCfg   = loader.loadSensorConfig(sensorCfgPath);
-    const auto transportCfg= loader.loadTransportConfig(transportCfgPath);
+    const auto sensorCfg = loader.loadSensorConfig(sensorCfgPath);
+    const auto transportCfg = loader.loadTransportConfig(transportCfgPath);
     //const auto dsSel       = loader.loadSensorDataSourceSelector(dsSelectorPath);
 
-    //auto dataSource = SensorDataSourceFactory::make(dsSel);
-    //auto transport  = TransportFactory::make(transportCfg);
+    //auto dataSource = DataSourceFactory::make(dsSel);
+    auto transport  = TransportFactory::make(transportCfg);
 
-    //Sensor sensor{sensorCfg, *dataSource, *transport};
+    Sensor sensor{sensorCfg, ds, *transport};
+    sensor.connect();
+    sensor.runOnce();
+    sensor.close();
+
+    // Start sensor thread
+    std::atomic<bool> running(true);
+    std::thread sensorThread([&] {
+        sensor.connect();
+        sensor.run(running);
+        sensor.close();
+    });
 
 
     // --------------------------- //
@@ -78,10 +96,20 @@ int main(int argc, const char* argv[]) {
     // }
 
 
-    TcpSocket cli{"127.0.0.1", 8080};
-    cli.connect();
-    cli.sendString("{\"hello\":\"world\"}\n");
-    cli.close();
+    //TcpSocket cli{"127.0.0.1", 8080};
+    //cli.connect();
+    //cli.sendString("{\"hello\":\"world\"}\n");
+    //cli.close();
+
+        // Let the program run for 10 seconds
+
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    running = false;
+
+    // Wait for sensor thread to exit
+    //sensorThread.join();
+
+    std::cout << "Program finished after 10 seconds.\n";
 
     return 0;
 }   

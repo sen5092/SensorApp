@@ -1,0 +1,14 @@
+{
+    "sensor_id": "temp-01",
+    "interval_seconds": 2,
+    "units": {
+      "temperature": "F",
+      "humidity": "%",
+      "pressure": "hPa"
+    },
+    "metadata": {
+      "location": "lab-01",
+      "device_model": "alpha-proto"
+    }
+  }
+  

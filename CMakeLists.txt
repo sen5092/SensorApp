@@ -9,6 +9,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+
 # Export compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -40,6 +42,9 @@ FetchContent_MakeAvailable(json)
 # Simulation Toggle
 # -----------------
 option(SIMULATION "Build with simulation data source" ON)
+
+option(USE_OPENCV "Enable OpenCV features" ON)
+
 
 # -----------------
 # Subdirectories

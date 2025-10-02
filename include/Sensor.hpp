@@ -7,13 +7,16 @@
 #include "IDataSource.hpp"
 #include "ITransport.hpp"
 #include "TcpSocket.hpp"
+#include "ConfigTypes.hpp"
+#include <atomic>
+#include <thread>
 
 // Sensor: reads values from an IDataGenerator at a fixed interval
 // and sends them (as JSON text) to a collector via TcpClient.
 class Sensor {
 public:
     // Construct with path to sensor_config.json and a data generator
-    Sensor(std::string configPath, std::shared_ptr<ITransport> transport, std::shared_ptr<IDataGatherer> generator);
+    Sensor(const SensorConfig& config, IDataSource& datasouce, ITransport& transport);
 
     // Load config, create TcpClient (but don't connect yet)
     void loadConfig();
@@ -24,6 +27,8 @@ public:
     // Do one cycle: read→serialize→send
     void runOnce();
 
+    void run(std::atomic<bool>& running);
+
     // Close TCP connection (safe to call multiple times)
     void close() noexcept;
 
@@ -32,12 +37,13 @@ private:
     std::string buildJsonPayload(const std::unordered_map<std::string, double>& values) const;
 
     // Config-derived state
+    SensorConfig config_;
     std::string configPath_;
     std::string sensorId_;
     int32_t     intervalSeconds_{1};
 
     // Dependencies / runtime state
-    std::shared_ptr<IDataGenerator> generator_;
-    std::shared_ptr<ITransport>     transport_;
+    IDataSource& datasource_;
+    ITransport&    transport_;
     bool                            loaded_{false};
 };

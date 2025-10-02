@@ -19,7 +19,7 @@ if(SIMULATION)
         SimulationDataSource.cpp
     )
 
-    set(APPEND CONFIG_FILES
+    list(APPEND CONFIG_FILES
         simulation_datasource_config.json
     )
 else()
@@ -29,9 +29,44 @@ else()
     )
 endif()
 
+
+if (USE_OPENCV)
+    message(STATUS "Building with OpenCV support")
+    # If CMake can’t find OpenCV automatically, pass -DOpenCV_DIR at configure time:
+    #   -DOpenCV_DIR=/opt/homebrew/opt/opencv/lib/cmake/opencv4
+    find_package(OpenCV REQUIRED)
+
+    message(STATUS "Found OpenCV ${OpenCV_VERSION}")
+
+    list(APPEND APP_SOURCES
+        HardwareDataSource.cpp
+    )
+
+    add_compile_definitions(USE_OPENCV)
+
+else()
+    message(STATUS "Building without OpenCV")
+    list(APPEND APP_SOURCES
+        SimulationDataSource.cpp
+    )
+
+    list(APPEND CONFIG_FILES
+        simulation_datasource_config.json
+    )
+
+endif()
+
+
 add_library(SensorLib ${APP_SOURCES})
+
 target_include_directories(SensorLib PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(SensorLib PUBLIC nlohmann_json::nlohmann_json)
+
+if (USE_OPENCV)
+  # Link OpenCV into SensorLib (so code inside your lib can use it)
+  target_include_directories(SensorLib PUBLIC ${OpenCV_INCLUDE_DIRS})
+  target_link_libraries(SensorLib PRIVATE ${OpenCV_LIBS})
+endif()
 
 
 

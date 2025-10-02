@@ -2,6 +2,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <nlohmann/json.hpp>         // JSON library
+#include "Logger.hpp"
 
 using json = nlohmann::json;
 
@@ -13,9 +14,9 @@ SimulationDataSource::SimulationDataSource(const std::string &configPath) {
     std::ifstream file(configPath);
     if (!file.is_open()) {
         throw std::runtime_error("Could not open config file: " + configPath);
-    } else {
-        cout << reading
     }
+
+    Logger::instance().debug("Simulation data source read from " + configPath);
 
     json config;
     file >> config;

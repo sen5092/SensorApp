@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <iostream>
+#include "Logger.hpp"
 
 using json = nlohmann::json;
 
@@ -16,6 +17,9 @@ namespace {
         if (!in.is_open()) {
             throw std::runtime_error("ConfigLoader: cannot open file: " + path);
         }
+
+        Logger::instance().debug("Reading from JSON file at " + path);
+
         json j;
         in >> j;
         return j;
@@ -101,7 +105,28 @@ TransportConfig ConfigLoader::loadTransportConfig(const std::string& path) const
         if (cfg.port <= 0 || cfg.port > 65535) {
             throw std::runtime_error("TransportConfig: 'tcp.port' out of range (1..65535) in " + path);
         }
-    } else {
+    } else if (cfg.kind == "udp") 
+    {
+        if (!j.contains("udp") || !j["udp"].is_object()) {
+            throw std::runtime_error("TransportConfig: missing 'udp' object for kind='udp' in " + path);
+        }
+        const auto& udp = j["udp"];
+
+        if (!udp.contains("host") || !udp["host"].is_string()) {
+            throw std::runtime_error("TransportConfig: missing or invalid 'udp.host' in " + path);
+        }
+        if (!udp.contains("port") || !udp["port"].is_number_integer()) {
+            throw std::runtime_error("TransportConfig: missing or invalid 'udp.port' in " + path);
+        }
+
+        cfg.host = udp["host"].get<std::string>();
+        cfg.port = udp["port"].get<int32_t>();
+
+        if (cfg.port <= 0 || cfg.port > 65535) {
+            throw std::runtime_error("TransportConfig: 'udp.port' out of range (1..65535) in " + path);
+        } 
+    }
+    else {
         throw std::runtime_error("TransportConfig: unsupported kind '" + cfg.kind + "' in " + path);
     }
 

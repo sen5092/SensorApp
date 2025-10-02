@@ -1,7 +1,9 @@
 {
   "limits": {
     "temperature": {
-      "fixed": 72.0
+      "min": 0,
+      "max": 120,
+      "bad_probability": 0.03
     },
     "humidity": {
       "min": 20,
