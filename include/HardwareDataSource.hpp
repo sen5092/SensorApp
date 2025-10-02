@@ -12,8 +12,8 @@
 class HardwareDataSource : public IDataSource {
 
     private:
-        bool grab_one_frame_to_jpeg(const std::string& outfile); 
-        bool grabFrame(cv::Mat& frame);  // internal helper
+        static bool grab_one_frame_to_jpeg(const std::string& outfile); 
+        static bool grabFrame(cv::Mat& frame);  // internal helper
 
     public:
 

@@ -16,7 +16,7 @@
 class Sensor {
 public:
     // Construct with path to sensor_config.json and a data generator
-    Sensor(const SensorConfig& config, IDataSource& datasouce, ITransport& transport);
+    Sensor(const SensorConfig& config, IDataSource& datasource, ITransport& transport);
 
     // Load config, create TcpClient (but don't connect yet)
     void loadConfig();
@@ -34,7 +34,7 @@ public:
 
 private:
     // Helpers (implementation detail)
-    std::string buildJsonPayload(const std::unordered_map<std::string, double>& values) const;
+    std::string buildJsonPayload(const std::unordered_map<std::string, double>& readingsMap) const;
 
     // Config-derived state
     SensorConfig config_;

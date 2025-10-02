@@ -1,6 +1,21 @@
+/**
+ * @file    HardwareDataSource.cpp
+ * @author  Scott Novak
+ * @date    2025-10-01
+ * @brief   Implementation of HardwareDataSource for capturing frames with OpenCV.
+ *
+ * @details
+ * Defines the HardwareDataSource class methods, including frame capture (`grabFrame`),
+ * metadata extraction (`readAll`), and snapshot writing (`grab_one_frame_to_jpeg`).
+ * This component is used by the Sensor class to provide image-based readings.
+ */
+
 #include <opencv2/core.hpp>
+#include <opencv2/core/mat.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/videoio.hpp>
+#include <unordered_map>
+#include <string>
 #include <iostream>
 #include "HardwareDataSource.hpp"
 
@@ -28,7 +43,9 @@ std::unordered_map<std::string, double> HardwareDataSource::readAll() {
 
 bool HardwareDataSource::grab_one_frame_to_jpeg(const std::string& outfile) {
     cv::Mat frame;
-    if (!grabFrame(frame)) return false;
+    if (!grabFrame(frame)) {
+        return false;
+    }
 
     if (!cv::imwrite(outfile, frame)) {
         std::cerr << "[OpenCV] Failed to write " << outfile << "\n";

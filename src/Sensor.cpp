@@ -11,17 +11,21 @@
 #include <string>
 #include <unordered_map>
 #include <stdexcept>
+#include <string_view>
+#include <cmath>
+#include <thread>
+#include <atomic>
 
 using json = nlohmann::json;
 
 // ----- ctor -----
-Sensor::Sensor(const SensorConfig& cfg,
-               IDataSource& source,
+Sensor::Sensor(const SensorConfig& config,
+               IDataSource& datasource,
                ITransport& transport)
-    : config_(cfg),
-      sensorId_(cfg.sensorId),
-      intervalSeconds_(cfg.intervalSeconds),
-      datasource_(source),
+    : config_(config),
+      sensorId_(config.sensorId),
+      intervalSeconds_(config.intervalSeconds),
+      datasource_(datasource),
       transport_(transport)
 {
     if (sensorId_.empty()) {
@@ -87,27 +91,34 @@ std::string Sensor::buildJsonPayload(const std::unordered_map<std::string, doubl
     };
 
     auto inferUnitFromReadingName = [this](std::string_view readingName) -> std::string {
-        if (auto it = config_.units.find(std::string(readingName)); it != config_.units.end()) {
-            return it->second;
+        if (auto itr = config_.units.find(std::string(readingName)); itr != config_.units.end()) {
+            return itr->second;
         }
         // sensible defaults for image-sensor fields
         if (readingName.find("width")     != std::string_view::npos ||
-            readingName.find("height")    != std::string_view::npos) return "pixels";
-        if (readingName.find("channels")  != std::string_view::npos) return "count";
+            readingName.find("height")    != std::string_view::npos) {
+                return "pixels";
+        }
+        if (readingName.find("channels")  != std::string_view::npos) {
+            return "count";
+        }
         if (readingName.find("bytes")     != std::string_view::npos ||
-            readingName.find("size")      != std::string_view::npos) return "bytes";
+            readingName.find("size")      != std::string_view::npos) {
+                return "bytes";
+        }
         if (readingName.find("brightness")!= std::string_view::npos ||
-            readingName.find("luma")      != std::string_view::npos) return "intensity";
+            readingName.find("luma")      != std::string_view::npos) {
+                return "intensity";
+        }
         return "unknown";
     };
 
     // Readings object
     json readingsJson = json::object();
     for (const auto& [readingName, readingValue] : readingsMap) {
-        const double roundedValue = roundToDecimals(readingValue, 3);
 
         json readingJsonObject;
-        readingJsonObject["value"] = roundedValue;
+        readingJsonObject["value"] = roundToDecimals(readingValue, 2);
         readingJsonObject["unit"]  = inferUnitFromReadingName(readingName);
 
         readingsJson[readingName] = readingJsonObject;
