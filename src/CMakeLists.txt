@@ -1,8 +1,15 @@
+# Clang tidy should only run on the library and main app, not tests, so we place it in this scope. 
+set(CMAKE_CXX_CLANG_TIDY
+    clang-tidy;
+    -header-filter=^${CMAKE_SOURCE_DIR}/include;
+    -header-filter=^${CMAKE_SOURCE_DIR}/src;
+)
+
 # Build shared library with reusable code
 set(APP_SOURCES
-    TcpSocket.cpp
     ConfigLoader.cpp
     Sensor.cpp
+    TcpSocket.cpp
     TransportFactory.cpp
     UdpSocket.cpp
 )
@@ -39,24 +46,16 @@ else()
 
 endif()
 
-
+# Set up the SensorLib library target
 add_library(SensorLib ${APP_SOURCES})
-
-#target_include_directories(SensorLib PUBLIC ${PROJECT_SOURCE_DIR}/include)
-
 target_include_directories(SensorLib PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-
-
 target_link_libraries(SensorLib PRIVATE nlohmann_json::nlohmann_json)
-
-
-
 enable_strict_warnings(SensorLib)
-enable_sanitizers(SensorLib)
 
+# If we want OpenCV support, link it to the library, this is for hardware data source code.
 if (USE_OPENCV)
   # Link OpenCV into SensorLib (so code inside your lib can use it)
   target_include_directories(SensorLib SYSTEM PUBLIC ${OpenCV_INCLUDE_DIRS})
@@ -64,12 +63,17 @@ if (USE_OPENCV)
 endif()
 
 
-
 # Main executable (depends on PracticeLib)
 add_executable(Sensor main.cpp)
 target_link_libraries(Sensor PRIVATE SensorLib)
 enable_strict_warnings(Sensor)
-enable_sanitizers(Sensor)
+
+# Apply sanitizers only in Debug builds for the main app + lib
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND ENABLE_SANITIZERS)
+    message(STATUS "Enabling sanitizers for Debug build")
+    enable_sanitizers(SensorLib)
+    enable_sanitizers(Sensor)
+endif()
 
 # Put only the relevant configs next to the built executable
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/config)

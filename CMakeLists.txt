@@ -26,11 +26,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # -----------------
 option(USE_OPENCV "Enable OpenCV features" ON)
 
-set(CMAKE_CXX_CLANG_TIDY
-    clang-tidy;
-    -header-filter=^${CMAKE_SOURCE_DIR}/include;
-    -header-filter=^${CMAKE_SOURCE_DIR}/src;
-)
+option(ENABLE_SANITIZERS "Enable AddressSanitizer/UBSan in Debug builds AND not unit testing!" OFF)
 
 # -----------------
 # Helper Functions
