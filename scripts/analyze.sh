@@ -48,8 +48,11 @@ if [ "$RUN_TIDY" = true ]; then
     fi
 
     # Overwrite the report; capture both stdout and stderr
-    clang-tidy $FILES -p "$BUILD_DIR" -extra-arg=-fno-color-diagnostics \
+    clang-tidy $FILES -p "$BUILD_DIR" \
+      -extra-arg=-fno-color-diagnostics \
+      -header-filter='^/Users/scottnovak/Projects/SensorApp/(src|include)/' \
       > "$REPORT_DIR/clang-tidy.txt" 2>&1
+
 
     echo "Clang-tidy complete. Report saved to $REPORT_DIR/clang-tidy.txt"
   else
