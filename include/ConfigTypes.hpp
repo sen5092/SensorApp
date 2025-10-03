@@ -17,8 +17,8 @@ struct SensorConfig {
 // ---------- Transport (how bytes leave the device) ----------
 struct TransportConfig {
     std::string kind;  // e.g., "tcp"
-    std::string host;  // for tcp
-    int32_t     port{0};
+    std::string host;
+    uint16_t     port{0};
 };
 
 // ---------- Data generation (what values to produce) ----------
@@ -42,4 +42,3 @@ struct DataSourceSelector {
     std::string kind;        // "mock" | "hardware"
     std::string configPath;  // path to that kind's own config
 };
-  

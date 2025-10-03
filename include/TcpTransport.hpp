@@ -8,13 +8,14 @@
 
 class TcpTransport : public ITransport {
 public:
-    TcpTransport(std::string host, int32_t port) : client_{std::move(host), port} {}
 
-    void connect() override            { client_.connect(); }
-    std::size_t sendString(const std::string& payload) override { return client_.sendString(payload); }
-    void close() override              { client_.close(); }
-    bool isConnected() const override  { return client_.isConnected(); }
+    TcpTransport(std::string host, u_int16_t port) : socket_{std::move(host), port} {}
+
+    void connect() override            { socket_.connect(); }
+    std::size_t sendString(const std::string& payload) override { return socket_.sendString(payload); }
+    void close() override              { socket_.close(); }
+    bool isConnected() const override  { return socket_.isConnected(); }
 
 private:
-    TcpSocket client_;
+    TcpSocket socket_;
 };

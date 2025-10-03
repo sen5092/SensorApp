@@ -7,7 +7,7 @@
 
 class UdpSocket {
 public:
-    UdpSocket(std::string host, int32_t port);
+    UdpSocket(std::string host, uint16_t port);
     ~UdpSocket();
 
     UdpSocket(const UdpSocket&) = delete;
@@ -15,12 +15,12 @@ public:
 
     void connect();                       // resolve + create datagram socket + ::connect (sets default peer)
     bool isConnected() const noexcept;    // fd_ >= 0
-    std::size_t send(const void* data, std::size_t len); // send one datagram
-    std::size_t sendString(const std::string& s);        // convenience
+    std::size_t send(const void* data, std::size_t len) const; // send one datagram
+    std::size_t sendString(const std::string& payload) const;        // convenience
     void close() noexcept;                // shutdown (best-effort) + close
 
 private:
     std::string host_;
-    int32_t     port_;
+    uint16_t     port_;
     int         fd_{-1};                  // POSIX socket fd; -1 = not connected
 };

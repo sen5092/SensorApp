@@ -18,9 +18,12 @@
 #include <string>
 #include <iostream>
 #include "HardwareDataSource.hpp"
+#include "Logger.hpp"
 
 
 std::unordered_map<std::string, double> HardwareDataSource::readAll() {
+
+    Logger::instance().info("Reading from the hardware.");
 
     std::unordered_map<std::string, double> values;
     cv::Mat frame;

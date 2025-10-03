@@ -1,96 +1,119 @@
-// ConfigLoader.cpp
-#include "ConfigLoader.hpp"
+/**
+ * @file ConfigLoader.cpp
+ * @brief Implements ConfigLoader for reading and validating JSON configs.
+ *
+ * Contains the method definitions for parsing JSON fields and enforcing
+ * general constraints such as valid port ranges.
+ */
 
-#include <fstream>
-#include <stdexcept>
-#include <nlohmann/json.hpp>
-#include <filesystem>
-#include <iostream>
+#include "ConfigLoader.hpp"
+#include "ConfigTypes.hpp"
+#include "NetworkConstants.hpp"
+
 #include "Logger.hpp"
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <string>
+#include <cstdint>
+#include <stdexcept>
+#include <unordered_map>
 
 using json = nlohmann::json;
 
 // --- small helper: read a JSON file into a json object ---
 namespace {
+
     json readJsonFile(const std::string& path) {
-        std::ifstream in(path);
-        if (!in.is_open()) {
+
+        std::ifstream input(path);
+        if (!input.is_open()) {
             throw std::runtime_error("ConfigLoader: cannot open file: " + path);
         }
 
         Logger::instance().debug("Reading from JSON file at " + path);
 
-        json j;
-        in >> j;
-        return j;
+        json jsonObject;
+        input >> jsonObject;
+        return jsonObject;
     }
 
-    // helper to read a string->string map if the field exists
-    static void readStringMapIfPresent(const json& j, const char* key,
-                                       std::unordered_map<std::string, std::string>& out) {
-        if (j.contains(key)) {
-            const auto& obj = j.at(key);
-            if (!obj.is_object()) {
-                throw std::runtime_error(std::string("ConfigLoader: '") + key + "' must be an object");
+    // Helper to read a string->string map if the field exists
+    void readStringMapIfPresent(
+        const json& jsonConfig,
+        const char* fieldName,
+        std::unordered_map<std::string, std::string>& outputMap)
+    {
+        if (jsonConfig.contains(fieldName)) {
+            const auto& fieldValue = jsonConfig.at(fieldName);
+            if (!fieldValue.is_object()) {
+                throw std::runtime_error(
+                    std::string("ConfigLoader: '") + fieldName + "' must be an object");
             }
-            out.clear();
-            for (const auto& [k, v] : obj.items()) {
-                if (!v.is_string()) {
-                    throw std::runtime_error(std::string("ConfigLoader: '") + key + "." + k + "' must be string");
+
+            outputMap.clear();
+            for (const auto& [entryKey, entryValue] : fieldValue.items()) {
+                if (!entryValue.is_string()) {
+                    throw std::runtime_error(
+                        std::string("ConfigLoader: '") + fieldName + "." + entryKey +
+                        "' must be a string");
                 }
-                out.emplace(k, v.get<std::string>());
+                outputMap.emplace(entryKey, entryValue.get<std::string>());
             }
         }
     }
-}
+
+} // namespace
 
 // ---------------- Sensor ----------------
 
-SensorConfig ConfigLoader::loadSensorConfig(const std::string& path) const {
-    const json j = readJsonFile(path);
+SensorConfig ConfigLoader::loadSensorConfig(const std::string& path) {
+    const json jsonObject = readJsonFile(path);
 
     SensorConfig cfg;
 
     // sensor_id (required, string)
-    if (!j.contains("sensor_id") || !j["sensor_id"].is_string()) {
+    if (!jsonObject.contains("sensor_id") || !jsonObject["sensor_id"].is_string()) {
         throw std::runtime_error("SensorConfig: missing or invalid 'sensor_id' in " + path);
     }
-    cfg.sensorId = j["sensor_id"].get<std::string>();
+    cfg.sensorId = jsonObject["sensor_id"].get<std::string>();
 
     // interval_seconds (optional int, default 1)
-    if (j.contains("interval_seconds")) {
-        if (!j["interval_seconds"].is_number_integer()) {
-            throw std::runtime_error("SensorConfig: 'interval_seconds' must be an integer in " + path);
+    if (jsonObject.contains("interval_seconds")) {
+        if (!jsonObject["interval_seconds"].is_number_integer()) {
+            throw std::runtime_error("SensorConfig: 'interval_seconds' must be an integer in " +
+                                     path);
         }
-        cfg.intervalSeconds = j["interval_seconds"].get<int32_t>();
+        cfg.intervalSeconds = jsonObject["interval_seconds"].get<int32_t>();
     } else {
         cfg.intervalSeconds = 1;
     }
 
     // Optional maps
-    readStringMapIfPresent(j, "units", cfg.units);
-    readStringMapIfPresent(j, "metadata", cfg.metadata);
+    readStringMapIfPresent(jsonObject, "units", cfg.units);
+    readStringMapIfPresent(jsonObject, "metadata", cfg.metadata);
 
     return cfg;
 }
 
 // ---------------- Transport ----------------
 
-TransportConfig ConfigLoader::loadTransportConfig(const std::string& path) const {
-    const json j = readJsonFile(path);
+TransportConfig ConfigLoader::loadTransportConfig(const std::string& path) {
 
-    if (!j.contains("kind") || !j["kind"].is_string()) {
+    const json jsonObject = readJsonFile(path);
+
+    if (!jsonObject.contains("kind") || !jsonObject["kind"].is_string()) {
         throw std::runtime_error("TransportConfig: missing or invalid 'kind' in " + path);
     }
 
     TransportConfig cfg;
-    cfg.kind = j["kind"].get<std::string>();
+    cfg.kind = jsonObject["kind"].get<std::string>();
 
     if (cfg.kind == "tcp") {
-        if (!j.contains("tcp") || !j["tcp"].is_object()) {
-            throw std::runtime_error("TransportConfig: missing 'tcp' object for kind='tcp' in " + path);
+        if (!jsonObject.contains("tcp") || !jsonObject["tcp"].is_object()) {
+            throw std::runtime_error("TransportConfig: missing 'tcp' object for kind='tcp' in " +
+                                     path);
         }
-        const auto& tcp = j["tcp"];
+        const auto& tcp = jsonObject["tcp"];
 
         if (!tcp.contains("host") || !tcp["host"].is_string()) {
             throw std::runtime_error("TransportConfig: missing or invalid 'tcp.host' in " + path);
@@ -102,15 +125,17 @@ TransportConfig ConfigLoader::loadTransportConfig(const std::string& path) const
         cfg.host = tcp["host"].get<std::string>();
         cfg.port = tcp["port"].get<int32_t>();
 
-        if (cfg.port <= 0 || cfg.port > 65535) {
-            throw std::runtime_error("TransportConfig: 'tcp.port' out of range (1..65535) in " + path);
+        if (!isValidPortRange(cfg.port)) {
+            throw std::runtime_error("TransportConfig: 'tcp.port' out of range (1..65535) in " +
+                                     path);
         }
-    } else if (cfg.kind == "udp") 
-    {
-        if (!j.contains("udp") || !j["udp"].is_object()) {
-            throw std::runtime_error("TransportConfig: missing 'udp' object for kind='udp' in " + path);
+    } else if (cfg.kind == "udp") {
+
+        if (!jsonObject.contains("udp") || !jsonObject["udp"].is_object()) {
+            throw std::runtime_error("TransportConfig: missing 'udp' object for kind='udp' in " +
+                                     path);
         }
-        const auto& udp = j["udp"];
+        const auto& udp = jsonObject["udp"];
 
         if (!udp.contains("host") || !udp["host"].is_string()) {
             throw std::runtime_error("TransportConfig: missing or invalid 'udp.host' in " + path);
@@ -118,15 +143,14 @@ TransportConfig ConfigLoader::loadTransportConfig(const std::string& path) const
         if (!udp.contains("port") || !udp["port"].is_number_integer()) {
             throw std::runtime_error("TransportConfig: missing or invalid 'udp.port' in " + path);
         }
+        if (!isValidPortRange(udp["port"])) {
+            throw std::runtime_error("TransportConfig: 'udp.port' out of range (1..65535) in " + path);
+        }
 
         cfg.host = udp["host"].get<std::string>();
-        cfg.port = udp["port"].get<int32_t>();
+        cfg.port = udp["port"].get<uint16_t>();
 
-        if (cfg.port <= 0 || cfg.port > 65535) {
-            throw std::runtime_error("TransportConfig: 'udp.port' out of range (1..65535) in " + path);
-        } 
-    }
-    else {
+    } else {
         throw std::runtime_error("TransportConfig: unsupported kind '" + cfg.kind + "' in " + path);
     }
 

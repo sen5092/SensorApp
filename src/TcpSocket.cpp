@@ -23,7 +23,7 @@ static std::runtime_error sys_err(const std::string& where) {
  * - Just stores the host and port you want to connect to.
  * - Does NOT create the socket or touch the network yet.
  */
-TcpSocket::TcpSocket(std::string host, int32_t port)
+TcpSocket::TcpSocket(std::string host, uint16_t port)
     : host_(std::move(host)), port_(port), fd_(-1) {}
 
 /*

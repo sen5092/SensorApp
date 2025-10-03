@@ -15,6 +15,7 @@
 #include <cmath>
 #include <thread>
 #include <atomic>
+#include "Logger.hpp"
 
 using json = nlohmann::json;
 
@@ -46,7 +47,12 @@ void Sensor::close() noexcept {
 }
 
 void Sensor::run(std::atomic<bool>& running) {
+
+    Logger::instance().info("Sensor started, sending every " + std::to_string(intervalSeconds_) + " seconds.");
+
     while (running) {
+
+        Logger::instance().debug("Sensor tick: reading data and sending...");
         runOnce();
         std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds_));
     }

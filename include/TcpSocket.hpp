@@ -17,7 +17,7 @@
 class TcpSocket : public ITransport {
 public:
     // construct with destination
-    TcpSocket(std::string host, int32_t port);
+    TcpSocket(std::string host, uint16_t port);
     ~TcpSocket();
 
     // no copies (socket ownership)
@@ -41,6 +41,6 @@ public:
 
 private:
     std::string host_;
-    int32_t     port_;
+    uint16_t     port_;
     int         fd_{-1};   // POSIX socket fd; -1 means "not connected"
 };
