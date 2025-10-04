@@ -6,7 +6,7 @@
  *
  * @details
  * Defines the HardwareDataSource class methods, including frame capture (`grabFrame`),
- * metadata extraction (`readAll`), and snapshot writing (`grab_one_frame_to_jpeg`).
+ * metadata extraction (`readAll`), and snapshot writing (`grabFrameToJpeg`).
  * This component is used by the Sensor class to provide image-based readings.
  */
 
@@ -44,7 +44,7 @@ std::unordered_map<std::string, double> HardwareDataSource::readAll() {
     return values;
 }
 
-bool HardwareDataSource::grab_one_frame_to_jpeg(const std::string& outfile) {
+bool HardwareDataSource::grabFrameToJpeg(const std::string& outfile) {
     cv::Mat frame;
     if (!grabFrame(frame)) {
         return false;
