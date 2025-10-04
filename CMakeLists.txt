@@ -25,8 +25,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Options (User Toggles)
 # -----------------
 option(USE_OPENCV "Enable OpenCV features" ON)
-
 option(ENABLE_SANITIZERS "Enable AddressSanitizer/UBSan in Debug builds AND not unit testing!" OFF)
+option(ENABLE_COVERAGE "Enable code coverage" OFF)
+option(ENABLE_STRICT_WARNINGS "Enable strict compiler warnings" ON)
 
 # -----------------
 # Helper Functions
@@ -34,7 +35,7 @@ option(ENABLE_SANITIZERS "Enable AddressSanitizer/UBSan in Debug builds AND not 
 
 # A helper function to enable strict warnings for a target
 function(enable_strict_warnings target_name)
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang|GNU")
+    if (ENABLE_STRICT_WARNINGS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang|GNU")
         target_compile_options(${target_name} PRIVATE
             -Wall               # Most common warnings
             -Wextra             # More warnings
@@ -43,16 +44,12 @@ function(enable_strict_warnings target_name)
             -Wconversion        # Warn on type conversions
             -Wsign-conversion   # Signed/unsigned mismatches
         )
-    elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        target_compile_options(${target_name} PRIVATE
-            /W4   # high warnings level on MSVC
-        )
     endif()
 endfunction()
 
 # Sanitizers (Debug builds only)
 function(enable_sanitizers target_name)
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug"
+    if (ENABLE_SANITIZERS AND CMAKE_BUILD_TYPE STREQUAL "Debug"
         AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang|GNU")
 
         target_compile_options(${target_name} PRIVATE
@@ -64,6 +61,15 @@ function(enable_sanitizers target_name)
             -fsanitize=address,undefined
             -fno-omit-frame-pointer
         )
+    endif()
+endfunction()
+
+# cmake/EnableCoverage.cmake
+function(enable_coverage target)
+    if(ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(STATUS "Enabling coverage for target: ${target}")
+        target_compile_options(${target} PRIVATE -fprofile-instr-generate -fcoverage-mapping)
+        target_link_options(${target} PRIVATE -fprofile-instr-generate -fcoverage-mapping)
     endif()
 endfunction()
 

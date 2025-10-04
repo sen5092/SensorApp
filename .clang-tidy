@@ -60,3 +60,6 @@ CheckOptions:
     value: CamelCase
   - key: readability-identifier-naming.MacroDefinitionCase
     value: UPPER_CASE
+
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: 'unistd.h'
