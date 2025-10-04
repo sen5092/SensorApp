@@ -32,6 +32,10 @@ void UdpSocket::connect() {
         return;
     }
 
+    if (host_.empty()) {
+        throw std::invalid_argument("UdpSocket: host cannot be empty");
+    }
+
     // Resolve destination (IPv4 or IPv6) for UDP
     struct addrinfo hints = {};
     hints.ai_family   = AF_UNSPEC;   // allow v4 or v6

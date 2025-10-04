@@ -83,6 +83,11 @@ SensorConfig ConfigLoader::loadSensorConfig(const std::string& path) {
             throw std::runtime_error("SensorConfig: 'interval_seconds' must be an integer in " +
                                      path);
         }
+
+        if (jsonObject["interval_seconds"] <= 0) {
+            throw std::runtime_error("SensorConfig: 'interval_seconds' must be > 0 in " + path);
+        }
+
         cfg.intervalSeconds = jsonObject["interval_seconds"].get<int32_t>();
     } else {
         cfg.intervalSeconds = 1;
@@ -121,14 +126,15 @@ TransportConfig ConfigLoader::loadTransportConfig(const std::string& path) {
         if (!tcp.contains("port") || !tcp["port"].is_number_integer()) {
             throw std::runtime_error("TransportConfig: missing or invalid 'tcp.port' in " + path);
         }
-
-        cfg.host = tcp["host"].get<std::string>();
-        cfg.port = tcp["port"].get<int32_t>();
-
-        if (!isValidPortRange(cfg.port)) {
+        if (!isValidPortRange(tcp["port"])) {
             throw std::runtime_error("TransportConfig: 'tcp.port' out of range (1..65535) in " +
                                      path);
         }
+
+        cfg.host = tcp["host"].get<std::string>();
+        cfg.port = tcp["port"].get<u_int16_t>();
+
+
     } else if (cfg.kind == "udp") {
 
         if (!jsonObject.contains("udp") || !jsonObject["udp"].is_object()) {
