@@ -14,9 +14,6 @@
 
 class ConfigLoader {
 public:
-    static SensorConfig    loadSensorConfig(const std::string& path);
+    [[nodiscard]] static SensorConfig    loadSensorConfig(const std::string& path);
     static TransportConfig loadTransportConfig(const std::string& path);
-    DataSourceConfig loadDataGenerationConfig(const std::string& path) const;
-    DataSourceSelector loadSensorDataSourceSelector(const std::string& path) const;
-
 };
