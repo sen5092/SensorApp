@@ -17,7 +17,8 @@ Checks: >
 
 WarningsAsErrors: ''   # don’t fail build yet; can tighten later
 
-HeaderFilterRegex: '^(src|include)/'   # only lint your code, not externals
+HeaderFilterRegex: '^/Users/scottnovak/Projects/SensorApp/(src|include)/'   # only lint your code, not externals
+SystemHeaders: false
 FormatStyle: file                      # respect your .clang-format if present
 
 CheckOptions:
@@ -29,17 +30,17 @@ CheckOptions:
   - key: cppcoreguidelines-pro-type-member-init
     value: true
 
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: 'unistd.h,sys/types.h'
+
+
   # --- Naming conventions ---
   - key: readability-identifier-naming.VariableCase
     value: camelBack
   - key: readability-identifier-naming.GlobalVariableCase
     value: camelBack
-  - key: readability-identifier-naming.MemberCase
-    value: camelBack
-
   - key: readability-identifier-naming.FunctionCase
     value: camelBack
-
   - key: readability-identifier-naming.ClassCase
     value: CamelCase
   - key: readability-identifier-naming.StructCase
@@ -47,19 +48,21 @@ CheckOptions:
   - key: readability-identifier-naming.EnumCase
     value: CamelCase
 
-  # Local consts (inside a function) → camelCase
-  - key: readability-identifier-naming.LocalConstantCase
+  # Structs → public data fields in camelBack (no underscores)
+  - key: readability-identifier-naming.StructMemberCase
     value: camelBack
+  - key: readability-identifier-naming.StructMemberSuffix
+    value: ''
 
-  # Global constants (namespace scope) → UPPER_CASE
-  - key: readability-identifier-naming.GlobalConstantCase
-    value: UPPER_CASE
+  # Classes → private members in camelBack with trailing underscore
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: '_'
 
-  # Member constants (static const inside a class) → CamelCase or camelBack, your choice
+  # Constants and macros
   - key: readability-identifier-naming.ClassConstantCase
     value: CamelCase
   - key: readability-identifier-naming.MacroDefinitionCase
     value: UPPER_CASE
 
-  - key: misc-include-cleaner.IgnoreHeaders
-    value: 'unistd.h'
