@@ -1,4 +1,15 @@
-// Logger.h
+/**
+ * @file Logger.hpp
+ * @brief Simple thread-safe singleton logger for console and file output.
+ *
+ * The Logger provides timestamped log messages across multiple severity levels
+ * (info, debug, warning, error). Thread-safe via std::mutex to ensure messages
+ * from different threads do not interleave. Supports optional log file output
+ * in addition to standard output.
+ *
+ * @note All log methods are safe to call from any thread.
+ */
+
 #pragma once
 
 #include <string>
@@ -7,8 +18,10 @@
 #include <mutex>
 #include <memory>
 #include <ctime>
+#include <array>
+#include <cstdint>
 
-enum class LogLevel {
+enum class LogLevel : std::uint8_t {
     DEBUG,
     INFO,
     WARNING,
@@ -22,8 +35,14 @@ public:
         return loggerInstance;
     }
 
+        // Prevent copying and moving — modern style (public)
+    Logger(const Logger&) = delete;
+    Logger& operator=(const Logger&) = delete;
+    Logger(Logger&&) = delete;
+    Logger& operator=(Logger&&) = delete;
+
     void setLogFile(const std::string& filename) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         if (file_.is_open()) {
             file_.close();
         }
@@ -31,16 +50,16 @@ public:
     }
 
     void log(LogLevel level, const std::string& message) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        std::string timestamp = getTimestamp();
-        std::string levelStr = levelToString(level);
+        const std::lock_guard<std::mutex> lock(mutex_);
+        const std::string timestamp = getTimestamp();
+        const std::string levelStr = levelToString(level);
 
         if (file_.is_open()) {
-            file_ << "[" << timestamp << "] [" << levelStr << "] " << message << std::endl;
+            file_ << "[" << timestamp << "] [" << levelStr << "] " << message << '\n';
         }
 
         // Also print to console
-        std::cout << "[" << timestamp << "] [" << levelStr << "] " << message << std::endl;
+        std::cout << "[" << timestamp << "] [" << levelStr << "] " << message << '\n';
     }
 
     void debug(const std::string& msg)   { log(LogLevel::DEBUG, msg); }
@@ -56,16 +75,19 @@ private:
         }
     }
 
-    std::string getTimestamp() {
-        std::time_t now = std::time(nullptr);
-        char buf[20];
-        if (std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", std::localtime(&now))) {
-            return buf;
+    static std::string getTimestamp() {
+        constexpr std::size_t kTimestampBufSize = 20; // YYYY-MM-DD HH:MM:SS + '\0'
+        const std::time_t now = std::time(nullptr);
+        std::array<char, kTimestampBufSize> buf{}; // safer than char[20]
+
+        const std::tm* local = std::localtime(&now);
+        if (local != nullptr && std::strftime(buf.data(), buf.size(), "%Y-%m-%d %H:%M:%S", local) != 0) {
+            return {buf.data()};
         }
-        return "unknown-time";
+        return {"unknown-time"};
     }
 
-    std::string levelToString(LogLevel level) {
+    static std::string levelToString(LogLevel level) {
         switch (level) {
             case LogLevel::DEBUG:   return "DEBUG";
             case LogLevel::INFO:    return "INFO";

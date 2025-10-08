@@ -1,19 +1,36 @@
-// TcpSocket.cpp
+/**
+ * @file TcpSocket.cpp
+ * @brief Implementation of the TCP socket wrapper.
+ *
+ * Defines the TcpSocket class methods responsible for creating,
+ * connecting, sending, and receiving data using TCP sockets.
+ * Includes robust error handling and RAII-based cleanup of
+ * the underlying socket descriptor.
+ *
+ * @see TcpSocket
+ */
+
 #include "TcpSocket.hpp"
-#include "ITransport.hpp"
 
 #include <stdexcept>      // std::runtime_error
 #include <string>
 #include <cstring>        // std::strerror, std::memset
 #include <cerrno>         // errno
 #include <unistd.h>       // ::close, ::shutdown, ::write
-#include <sys/types.h>
 #include <sys/socket.h>   // ::socket, ::connect, ::send, SOL_SOCKET, etc.
 #include <netdb.h>        // ::getaddrinfo, ::freeaddrinfo, addrinfo
+#include <cstdint>        // int32_t
+#include <utility>       // std::move
+#include <cstddef>       // std::size_t
+#include <iterator>
 
 // ---------- small helpers: turn errno into a readable message ----------
-static std::runtime_error sys_err(const std::string& where) {
-    return std::runtime_error(where + ": " + std::strerror(errno));
+namespace {
+
+    // turn errno into an exception with context
+    std::runtime_error systemErr(const std::string& where) {
+        return std::runtime_error(where + ": " + std::strerror(errno));
+    }
 }
 
 // ---------- ctor / dtor ----------
@@ -24,7 +41,7 @@ static std::runtime_error sys_err(const std::string& where) {
  * - Does NOT create the socket or touch the network yet.
  */
 TcpSocket::TcpSocket(std::string host, uint16_t port)
-    : host_(std::move(host)), port_(port), fd_(-1) {}
+    : host_(std::move(host)), port_(port) {}
 
 /*
  * Destructor
@@ -45,28 +62,31 @@ TcpSocket::~TcpSocket() {
  * - On failure for all candidates, throw.
  */
 void TcpSocket::connect() {
+
     if (isConnected()) {
         return; // already connected; no-op
     }
 
+    if (host_.empty()) {
+        throw std::invalid_argument("TcpSocket: host cannot be empty");
+    }
+
     // Prepare hints for getaddrinfo: we want a TCP stream socket, any family.
-    struct addrinfo hints;
+    struct addrinfo hints = {};
     std::memset(&hints, 0, sizeof(hints));
     hints.ai_family   = AF_UNSPEC;   // allow IPv4 or IPv6
     hints.ai_socktype = SOCK_STREAM; // TCP
     hints.ai_flags    = 0;
     hints.ai_protocol = 0;           // any
 
-    // Port must be a C-string; we’ll format it from the int.
-    char portStr[16];
-    std::snprintf(portStr, sizeof(portStr), "%d", port_);
 
+    const std::string portStr = std::to_string(port_);
     struct addrinfo* results = nullptr;
-    int gai_rc = ::getaddrinfo(host_.c_str(), portStr, &hints, &results);
-    if (gai_rc != 0) {
+    const int rtnCode = ::getaddrinfo(host_.c_str(), portStr.c_str(), &hints, &results);
+    if (rtnCode != 0) {
         // getaddrinfo has its own error strings separate from errno.
         std::string msg = "getaddrinfo('" + host_ + "', " + portStr + "): ";
-        msg += ::gai_strerror(gai_rc);
+        msg += ::gai_strerror(rtnCode);
         throw std::runtime_error(msg);
     }
 
@@ -74,30 +94,30 @@ void TcpSocket::connect() {
     int lastErrno = 0;
     for (struct addrinfo* ai = results; ai != nullptr; ai = ai->ai_next) {
         // Create a socket for this candidate address.
-        int s = ::socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-        if (s < 0) {
+        const int sock = ::socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+        if (sock < 0) {
             lastErrno = errno;
             continue; // try next candidate
         }
 
         // Try to connect.
-        if (::connect(s, ai->ai_addr, ai->ai_addrlen) == 0) {
+        if (::connect(sock, ai->ai_addr, ai->ai_addrlen) == 0) {
             // Success! keep the socket and stop trying others.
-            fd_ = s;
+            fd_ = sock;
             ::freeaddrinfo(results);
             return;
         }
 
         // Failed to connect this candidate; remember errno, close, and continue.
         lastErrno = errno;
-        ::close(s);
+        ::close(sock);
     }
 
     ::freeaddrinfo(results);
 
     // If we got here, all candidates failed.
-    errno = lastErrno ? lastErrno : ECONNREFUSED;
-    throw sys_err("connect");
+    errno = (lastErrno != 0) ? lastErrno : ECONNREFUSED;
+    throw systemErr("connect");
 }
 
 /*
@@ -115,7 +135,9 @@ bool TcpSocket::isConnected() const noexcept {
  * - Never throws (noexcept).
  */
 void TcpSocket::close() noexcept {
-    if (fd_ < 0) return;
+    if (fd_ < 0) {
+        return;
+    }
 
     // Try to be polite: shutdown both directions.
     // If it fails (e.g., already closed by peer), we still proceed to ::close.
@@ -134,25 +156,25 @@ void TcpSocket::close() noexcept {
  * - On any real error, throws std::runtime_error.
  * - Returns total bytes written (== len on success).
  */
-std::size_t TcpSocket::send(const void* data, std::size_t len) {
+std::size_t TcpSocket::send(const void* data, std::size_t len) const {
     if (!isConnected()) {
         throw std::runtime_error("send: not connected");
     }
 
-    const char* p = static_cast<const char*>(data);
+    const char* dataPtr = static_cast<const char*>(data);
     std::size_t bytesLeft = len;
 
     while (bytesLeft > 0) {
         // ::send may write fewer bytes than requested; we must loop.
-        ssize_t n = ::send(fd_, p, bytesLeft, 0);
+        const ssize_t bytesSent = ::send(fd_, dataPtr, bytesLeft, 0);   // NOLINT(misc-include-cleaner)
 
-        if (n > 0) {
-            p += n;
-            bytesLeft -= static_cast<std::size_t>(n);
+        if (bytesSent > 0) {
+            dataPtr = std::next(dataPtr, bytesSent);
+            bytesLeft -= static_cast<std::size_t>(bytesSent);
             continue;
         }
 
-        if (n == 0) {
+        if (bytesSent == 0) {
             // 0 from send() is unusual; treat as connection issue.
             throw std::runtime_error("send: connection closed by peer");
         }
@@ -165,7 +187,7 @@ std::size_t TcpSocket::send(const void* data, std::size_t len) {
 
         // EAGAIN/EWOULDBLOCK would matter on non-blocking sockets.
         // We’re blocking, so treat other errors as fatal.
-        throw sys_err("send");
+        throw systemErr("send");
     }
 
     // If we sent everything, return 'len'.
@@ -177,6 +199,6 @@ std::size_t TcpSocket::send(const void* data, std::size_t len) {
  * - Convenience wrapper for text payloads (e.g., your JSON).
  * - Calls the raw send() with the string’s bytes.
  */
-std::size_t TcpSocket::sendString(const std::string& s) {
-    return send(s.data(), s.size());
+std::size_t TcpSocket::sendString(const std::string& payload) const {
+    return send(payload.data(), payload.size());
 }

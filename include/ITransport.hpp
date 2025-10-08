@@ -5,7 +5,13 @@
 
 class ITransport {
 public:
+    ITransport() = default;
     virtual ~ITransport() = default;
+
+    ITransport(const ITransport&) = delete;
+    ITransport& operator=(const ITransport&) = delete;
+    ITransport(ITransport&&) = delete;
+    ITransport& operator=(ITransport&&) = delete;
 
     // establish the link to the collector (whatever “link” means: TCP, TLS, cellular…)
     virtual void connect() = 0;
@@ -17,5 +23,5 @@ public:
     virtual void close() = 0;
 
     // optional helper for status
-    virtual bool isConnected() const = 0;
+    [[nodiscard]] virtual bool isConnected() const = 0;
 };

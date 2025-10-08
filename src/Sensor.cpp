@@ -1,4 +1,15 @@
-// Sensor.cpp
+/**
+ * @file Sensor.cpp
+ * @brief Implementation of the Sensor class for data acquisition and transmission.
+ *
+ * Contains the main logic for reading from an IDataSource implementation,
+ * building a data payload, and transmitting it through an ITransport.
+ * Manages sensor loop timing, exception handling, and graceful shutdown
+ * coordination between threads.
+ *
+ * @see Sensor
+ */
+
 #include "Sensor.hpp"
 
 #include "IDataSource.hpp"
@@ -17,7 +28,7 @@
 #include <atomic>
 #include "Logger.hpp"
 
-using json = nlohmann::json;
+using json = nlohmann::json;    // NOLINT(misc-include-cleaner)
 
 // ----- ctor -----
 Sensor::Sensor(const SensorConfig& config,
