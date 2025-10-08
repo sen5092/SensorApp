@@ -7,6 +7,7 @@ set(CMAKE_CXX_CLANG_TIDY
 # Build shared library with reusable code
 set(APP_SOURCES
     ConfigLoader.cpp
+    HardwareDataSource.cpp
     Sensor.cpp
     TcpSocket.cpp
     TransportFactory.cpp
@@ -18,32 +19,20 @@ set(CONFIG_FILES
     transport_config.json
 )
 
+# If CMake can’t find OpenCV automatically, pass -DOpenCV_DIR at configure time:
+#   -DOpenCV_DIR=/opt/homebrew/opt/opencv/lib/cmake/opencv4
+find_package(OpenCV REQUIRED)
+message(STATUS "Found OpenCV ${OpenCV_VERSION}")
 
-if (USE_OPENCV)
-    message(STATUS "Building with OpenCV support")
-    # If CMake can’t find OpenCV automatically, pass -DOpenCV_DIR at configure time:
-    #   -DOpenCV_DIR=/opt/homebrew/opt/opencv/lib/cmake/opencv4
-    find_package(OpenCV REQUIRED)
-
-    message(STATUS "Found OpenCV ${OpenCV_VERSION}")
-
-    list(APPEND APP_SOURCES
-        HardwareDataSource.cpp
-    )
-
-    add_compile_definitions(USE_OPENCV)
+if (USE_CAMERA)
+    message(STATUS "Building with camera support")
+    add_compile_definitions(USE_CAMERA)
 
 else()
-    message(STATUS "Building without OpenCV")
+    message(STATUS "Building with mock camera")
     list(APPEND APP_SOURCES
-        SimulationDataSource.cpp
+        MockCamera.cpp
     )
-
-    # We only need the simulation config if not using OpenCV, this is our dummy data source.
-    list(APPEND CONFIG_FILES
-        simulation_datasource_config.json
-    )
-
 endif()
 
 # Set up the SensorLib library target
@@ -52,17 +41,13 @@ target_include_directories(SensorLib PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+# Link OpenCV into SensorLib (so code inside your lib can use it)
+target_include_directories(SensorLib SYSTEM PUBLIC ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(SensorLib PRIVATE ${OpenCV_LIBS})
 target_link_libraries(SensorLib PRIVATE nlohmann_json::nlohmann_json)
 enable_strict_warnings(SensorLib)
 enable_sanitizers(SensorLib)
 enable_coverage(SensorLib)
-
-# If we want OpenCV support, link it to the library, this is for hardware data source code.
-if (USE_OPENCV)
-  # Link OpenCV into SensorLib (so code inside your lib can use it)
-  target_include_directories(SensorLib SYSTEM PUBLIC ${OpenCV_INCLUDE_DIRS})
-  target_link_libraries(SensorLib PRIVATE ${OpenCV_LIBS})
-endif()
 
 
 add_executable(Sensor main.cpp)

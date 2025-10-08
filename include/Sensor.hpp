@@ -14,7 +14,7 @@
 #include <memory>
 #include <string>
 #include <cstdint>
-#include "IDataSource.hpp"
+#include "HardwareDataSource.hpp"
 #include "ITransport.hpp"
 #include "TcpSocket.hpp"
 #include "ConfigTypes.hpp"
@@ -26,7 +26,7 @@
 class Sensor {
 public:
     // Construct with path to sensor_config.json and a data generator
-    Sensor(const SensorConfig& config, IDataSource& datasource, ITransport& transport);
+    Sensor(const SensorConfig& config, std::unique_ptr<HardwareDataSource> dataSource, std::unique_ptr<ITransport> transport);
 
     // Load config, create TcpClient (but don't connect yet)
     void loadConfig();
@@ -37,6 +37,8 @@ public:
     // Do one cycle: read→serialize→send
     void runOnce();
 
+    // Primary loop: repeatedly call runOnce() every intervalSeconds
+    // Stops when 'running' is set to false by another thread (Main in this case).
     void run(std::atomic<bool>& running);
 
     // Close TCP connection (safe to call multiple times)
@@ -50,10 +52,10 @@ private:
     SensorConfig config_;
     std::string configPath_;
     std::string sensorId_;
-    int32_t     intervalSeconds_ = 1;
+    int32_t     intervalSeconds_ = 1;   // default to collect data every 1 second
 
     // Dependencies / runtime state
-    IDataSource& datasource_;   // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
-    ITransport&  transport_;    // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    std::unique_ptr<HardwareDataSource> dataSource_;
+    std::unique_ptr<ITransport>  transport_;
     bool         loaded_ = false;
 };

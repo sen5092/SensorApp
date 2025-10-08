@@ -25,29 +25,28 @@
 
 #pragma once
 
-#include "IDataSource.hpp"
-
+#include "ICamera.hpp"
 #include <string>
 #include <unordered_map>
 #include <random>
 #include <opencv2/core.hpp>
 
-class HardwareDataSource : public IDataSource {
+class HardwareDataSource {
 
     private:
         // --- Internal helpers ---
-        static void logCameraInfo();
-        static bool grabFrameToJpeg(const std::string& outfile);
-        static bool grabFrame(cv::Mat& frame);  // internal helper
+        void logCameraInfo();
+        bool grabFrameToJpeg(const std::string& outfile);
+        bool grabFrame(cv::Mat& frame);  // internal helper
+
+        std::shared_ptr<ICamera> camera_;
 
     public:
 
         // --- Construction ---
-        HardwareDataSource();
+        explicit HardwareDataSource(std::shared_ptr<ICamera> camera);
 
         // --- Data Generation ---
-        std::unordered_map<std::string, double> readAll() override;
-
-        [[nodiscard]] static bool ensureCameraAuthorized();
+        std::unordered_map<std::string, double> readAll();
 
 };

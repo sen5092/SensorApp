@@ -12,10 +12,10 @@
 
 #include "Sensor.hpp"
 
-#include "IDataSource.hpp"
+#include "HardwareDataSource.hpp"
 #include "ITransport.hpp"
-// (Only needed if your header uses SensorConfig fields directly in the ctor)
 #include "ConfigTypes.hpp"
+#include "Logger.hpp"
 
 #include <nlohmann/json.hpp>
 #include <chrono>
@@ -26,19 +26,20 @@
 #include <cmath>
 #include <thread>
 #include <atomic>
-#include "Logger.hpp"
+#include <utility>  // std::move
+#include <memory>   // std::unique_ptr
 
 using json = nlohmann::json;    // NOLINT(misc-include-cleaner)
 
 // ----- ctor -----
 Sensor::Sensor(const SensorConfig& config,
-               IDataSource& datasource,
-               ITransport& transport)
+               std::unique_ptr<HardwareDataSource> dataSource,
+               std::unique_ptr<ITransport> transport)
     : config_(config),
       sensorId_(config.sensorId),
       intervalSeconds_(config.intervalSeconds),
-      datasource_(datasource),
-      transport_(transport)
+      dataSource_(std::move(dataSource)),
+      transport_(std::move(transport))
 {
     if (sensorId_.empty()) {
         throw std::invalid_argument("Sensor: sensorId must not be empty");
@@ -50,11 +51,11 @@ Sensor::Sensor(const SensorConfig& config,
 
 // ----- connect/close -----
 void Sensor::connect() {
-    transport_.connect();
+    transport_->connect();
 }
 
 void Sensor::close() noexcept {
-    transport_.close();
+    transport_->close();
 }
 
 void Sensor::run(std::atomic<bool>& running) {
@@ -72,13 +73,13 @@ void Sensor::run(std::atomic<bool>& running) {
 // ----- one tick: read -> json -> send -----
 void Sensor::runOnce() {
     // 1) get current readings
-    const auto values = datasource_.readAll();
+    const auto values = dataSource_->readAll();
 
     // 2) build payload
     const std::string payload = buildJsonPayload(values);
 
     // 3) send (blocking)
-    transport_.sendString(payload);
+    transport_->sendString(payload);
 }
 
 // ----- payload builder (minimal, line-delimited JSON) -----

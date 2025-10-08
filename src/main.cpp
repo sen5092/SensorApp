@@ -32,7 +32,7 @@
 #include "Logger.hpp"
 #include "Sensor.hpp"
 #include "TransportFactory.hpp"
-#include "ITransport.hpp"
+#include "HardwareDataSource.hpp"
 
 #include <atomic>
 #include <csignal>
@@ -43,11 +43,12 @@
 #include <string_view>
 #include <thread>
 #include <memory>
+#include <utility>
 
-#ifdef USE_OPENCV
-#include "HardwareDataSource.hpp"
+#ifdef USE_CAMERA
+#include "OpenCvCamera.hpp"
 #else
-#include "SimulationDataSource.hpp"
+#include "MockCamera.hpp"
 #endif
 
 
@@ -83,11 +84,6 @@ namespace {
     constexpr const char* kDefaultSensorEnv = "SENSOR_CONFIG";
     constexpr const char* kDefaultTransportEnv = "TRANSPORT_CONFIG";
     constexpr const char* kRunDurationEnv = "RUN_DURATION_SECONDS";
-
-#ifndef USE_OPENCV
-    constexpr std::string_view kDefaultSimCfgFile = "config/simulation_datasource_config.json";
-#endif
-
 } // namespace
 
 
@@ -130,22 +126,38 @@ int main(int /*argc*/, const char* /*argv*/[]) {    // NOLINT(bugprone-exception
         const auto sensorCfg = ConfigLoader::loadSensorConfig(sensorCfgPath);
         const auto transportCfg = ConfigLoader::loadTransportConfig(transportCfgPath);
 
-#ifdef USE_OPENCV
-    HardwareDataSource datasource;
-    // If we can't access the camera at startup, exit immediately
-    if (!HardwareDataSource::ensureCameraAuthorized()) {
+#ifdef USE_CAMERA
+
+    // Try to open the default camera (index 0)
+    // If it fails, log an error and exit.
+    auto camera = std::make_shared<OpenCvCamera>();
+    if(camera->open(0)){
+        Logger::instance().info("Camera opened successfully.");
+    } else {
+        Logger::instance().error("Failed to open camera.");
         return EXIT_FAILURE;
     }
+
+    Logger::instance().info("Camera opened successfully.");
+
+    auto dataSource = std::make_unique<HardwareDataSource>(camera);
+
 #else
-    const std::string simDataCfgPath = envOrDefault("SIMULATION_DATASOURCE_CONFIG", DEFAULT_SIMULATION_CFG);
-    SimulationDataSource datasource(simDataCfgPath);
+    auto camera = std::make_shared<MockCamera>();
+    if(camera->open(0)){
+        Logger::instance().info("MockCamera opened successfully.");
+    } else {
+        Logger::instance().error("Failed to open MockCamera.");
+        return EXIT_FAILURE;
+    }
+    auto dataSource = std::make_unique<HardwareDataSource>(camera);
 #endif
 
         // 2. Create transport
-        std::unique_ptr<ITransport> transport = TransportFactory::make(transportCfg);
+        auto transport = TransportFactory::make(transportCfg);
 
         // 3. Create sensor object and start sensor thread
-        Sensor sensor{sensorCfg, datasource, *transport};
+        Sensor sensor{sensorCfg, std::move(dataSource), std::move(transport)};
         std::thread sensorThread([&sensor]() {
             try {
                 sensor.connect();

@@ -9,20 +9,25 @@
  * metadata extraction (`readAll`), and snapshot writing (`grabFrameToJpeg`).
  * This component is used by the Sensor class to provide image-based readings.
  */
+#include "HardwareDataSource.hpp"
+#include "Logger.hpp"
+#include "ICamera.hpp"
 
 #include <opencv2/core.hpp>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/imgcodecs.hpp>
-#include <opencv2/videoio.hpp>
 #include <opencv2/core/types.hpp>
 #include <unordered_map>
 #include <string>
-#include "HardwareDataSource.hpp"
-#include "Logger.hpp"
+#include <memory>
+#include <utility>  // std::move
 
-HardwareDataSource::HardwareDataSource() {
-    logCameraInfo();
+
+HardwareDataSource::HardwareDataSource(std::shared_ptr<ICamera> camera)
+    : camera_(std::move(camera)) {
+        logCameraInfo();
 }
+
 
 std::unordered_map<std::string, double> HardwareDataSource::readAll() {
 
@@ -63,63 +68,42 @@ bool HardwareDataSource::grabFrameToJpeg(const std::string& outfile) {
 }
 
 bool HardwareDataSource::grabFrame(cv::Mat& frame) {
-    cv::VideoCapture cap(0, cv::CAP_AVFOUNDATION);
-    if (!cap.isOpened()) {
-        Logger::instance().error("Could not open default camera.");
+
+    if(!camera_ || !camera_->isOpened()) {
+        Logger::instance().error("Camera is not opened.");
         return false;
     }
 
-    if (!cap.read(frame) || frame.empty()) {
-        Logger::instance().error("Failed to read a frame from the camera.");
+    if (!camera_->read(frame)) {
+        Logger::instance().error("Failed to grab frame from camera.");
         return false;
     }
 
-    return true;
-}
-
-bool HardwareDataSource::ensureCameraAuthorized() {
-    Logger::instance().info("Checking camera access...");
-
-    cv::VideoCapture cap(0, cv::CAP_ANY);
-    if (!cap.isOpened()) {
-        Logger::instance().error(
-            "Camera not authorized or unavailable. "
-            "If on macOS, grant access in System Settings > Privacy > Camera.");
+    if (frame.empty()) {
+        Logger::instance().error("Captured frame is empty.");
         return false;
     }
 
-    Logger::instance().info("Camera authorized and available (Backend: " + cap.getBackendName() + ")");
-    cap.release();
     return true;
 }
 
 
 void HardwareDataSource::logCameraInfo() {
-    const int index = 0;
-    cv::VideoCapture cap(index);
-
-    if (!cap.isOpened()) {
-        Logger::instance().error("Failed to open camera index " + std::to_string(index));
-        return;
-    }
-
-    Logger::instance().info("Camera opened successfully.");
-    Logger::instance().debug("Backend: " + cap.getBackendName());
-    Logger::instance().debug("Resolution: " +
-                             std::to_string(static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH))) +
-                             "x" +
-                             std::to_string(static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT))));
 
     cv::Mat frame;
-    if (!cap.read(frame) || frame.empty()) {
-        Logger::instance().warning("Camera returned an empty or invalid frame.");
-        return;
-    }
+    if(grabFrame(frame))
+    {
+        Logger::instance().info("Capturing test frame...");
+        Logger::instance().debug("Backend: " + camera_->getBackendName());
 
-    cv::Scalar meanColor = cv::mean(frame);
-    Logger::instance().debug("Mean pixel intensity: [" +
-                             std::to_string(meanColor[0]) + ", " +
-                             std::to_string(meanColor[1]) + ", " +
-                             std::to_string(meanColor[2]) + "]");
+        Logger::instance().debug("Captured a frame at resolution: " +
+                                std::to_string(frame.cols) + "x" + std::to_string(frame.rows));
+
+        cv::Scalar meanColor = cv::mean(frame);
+        Logger::instance().debug("Mean pixel intensity: [" +
+                                std::to_string(meanColor[0]) + ", " +
+                                std::to_string(meanColor[1]) + ", " +
+                                std::to_string(meanColor[2]) + "]");
+    }
 }
 

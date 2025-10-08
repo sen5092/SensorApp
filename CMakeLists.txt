@@ -24,7 +24,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # -----------------
 # Options (User Toggles)
 # -----------------
-option(USE_OPENCV "Enable OpenCV features" ON)
+option(USE_CAMERA "Use hardware camera features" ON)
 option(ENABLE_SANITIZERS "Enable AddressSanitizer/UBSan in Debug builds AND not unit testing!" OFF)
 option(ENABLE_COVERAGE "Enable code coverage" OFF)
 option(ENABLE_STRICT_WARNINGS "Enable strict compiler warnings" ON)
