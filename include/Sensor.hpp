@@ -1,4 +1,14 @@
-// Sensor.hpp
+/**
+ * @file Sensor.hpp
+ * @brief Core sensor component responsible for reading and transmitting data.
+ *
+ * The Sensor orchestrates data acquisition via an IDataSource implementation
+ * and transmits results through an ITransport (e.g., TCP, UDP). It manages the
+ * main sensor loop, timing intervals, and graceful shutdown signaling.
+ *
+ * @note Thread-safe startup and shutdown behavior is expected from the caller.
+ */
+
 #pragma once
 
 #include <memory>
@@ -34,16 +44,16 @@ public:
 
 private:
     // Helpers (implementation detail)
-    std::string buildJsonPayload(const std::unordered_map<std::string, double>& readingsMap) const;
+    [[nodiscard]] std::string buildJsonPayload(const std::unordered_map<std::string, double>& readingsMap) const;
 
     // Config-derived state
     SensorConfig config_;
     std::string configPath_;
     std::string sensorId_;
-    int32_t     intervalSeconds_{1};
+    int32_t     intervalSeconds_ = 1;
 
     // Dependencies / runtime state
-    IDataSource& datasource_;
-    ITransport&    transport_;
-    bool                            loaded_{false};
+    IDataSource& datasource_;   // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    ITransport&  transport_;    // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    bool         loaded_ = false;
 };

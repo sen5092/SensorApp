@@ -6,7 +6,7 @@
  *
  * @details
  * Defines the HardwareDataSource class methods, including frame capture (`grabFrame`),
- * metadata extraction (`readAll`), and snapshot writing (`grab_one_frame_to_jpeg`).
+ * metadata extraction (`readAll`), and snapshot writing (`grabFrameToJpeg`).
  * This component is used by the Sensor class to provide image-based readings.
  */
 
@@ -16,7 +16,6 @@
 #include <opencv2/videoio.hpp>
 #include <unordered_map>
 #include <string>
-#include <iostream>
 #include "HardwareDataSource.hpp"
 #include "Logger.hpp"
 
@@ -44,31 +43,30 @@ std::unordered_map<std::string, double> HardwareDataSource::readAll() {
     return values;
 }
 
-bool HardwareDataSource::grab_one_frame_to_jpeg(const std::string& outfile) {
+bool HardwareDataSource::grabFrameToJpeg(const std::string& outfile) {
     cv::Mat frame;
     if (!grabFrame(frame)) {
         return false;
     }
 
     if (!cv::imwrite(outfile, frame)) {
-        std::cerr << "[OpenCV] Failed to write " << outfile << "\n";
+        Logger::instance().error("Failed to write " + outfile);
         return false;
     }
 
-    std::cout << "[OpenCV] Saved " << outfile
-              << " (" << frame.cols << "x" << frame.rows << ")\n";
+    Logger::instance().info("Saved snapshot to " + outfile);
     return true;
 }
 
 bool HardwareDataSource::grabFrame(cv::Mat& frame) {
     cv::VideoCapture cap(0, cv::CAP_AVFOUNDATION);
     if (!cap.isOpened()) {
-        std::cerr << "[OpenCV] Could not open default camera.\n";
+        Logger::instance().error("Could not open default camera.");
         return false;
     }
 
     if (!cap.read(frame) || frame.empty()) {
-        std::cerr << "[OpenCV] Failed to read a frame.\n";
+        Logger::instance().error("Failed to read a frame from the camera.");
         return false;
     }
 

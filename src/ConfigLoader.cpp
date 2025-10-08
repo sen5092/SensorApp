@@ -18,7 +18,7 @@
 #include <stdexcept>
 #include <unordered_map>
 
-using json = nlohmann::json;
+using json = nlohmann::json;    // NOLINT(misc-include-cleaner)
 
 // --- small helper: read a JSON file into a json object ---
 namespace {
@@ -61,6 +61,52 @@ namespace {
             }
         }
     }
+
+    void parseTcpJsonObject(const json& jsonObject, TransportConfig& cfg, const std::string& path) {
+
+        if (!jsonObject.contains("tcp") || !jsonObject["tcp"].is_object()) {
+            throw std::runtime_error("TransportConfig: missing 'tcp' object for kind='tcp' in " +
+                                     path);
+        }
+        const auto& tcp = jsonObject["tcp"];
+
+        if (!tcp.contains("host") || !tcp["host"].is_string()) {
+            throw std::runtime_error("TransportConfig: missing or invalid 'tcp.host' in " + path);
+        }
+        if (!tcp.contains("port") || !tcp["port"].is_number_integer()) {
+            throw std::runtime_error("TransportConfig: missing or invalid 'tcp.port' in " + path);
+        }
+        if (!isValidPortRange(tcp["port"])) {
+            throw std::runtime_error("TransportConfig: 'tcp.port' out of range (1..65535) in " +
+                                     path);
+        }
+
+        cfg.host = tcp["host"].get<std::string>();
+        cfg.port = tcp["port"].get<uint16_t>();
+    }
+
+    void parseUdpJsonObject(const json& jsonObject, TransportConfig& cfg, const std::string& path) {
+
+        if (!jsonObject.contains("udp") || !jsonObject["udp"].is_object()) {
+            throw std::runtime_error("TransportConfig: missing 'udp' object for kind='udp' in " +
+                                     path);
+        }
+        const auto& udp = jsonObject["udp"];
+
+        if (!udp.contains("host") || !udp["host"].is_string()) {
+            throw std::runtime_error("TransportConfig: missing or invalid 'udp.host' in " + path);
+        }
+        if (!udp.contains("port") || !udp["port"].is_number_integer()) {
+            throw std::runtime_error("TransportConfig: missing or invalid 'udp.port' in " + path);
+        }
+        if (!isValidPortRange(udp["port"])) {
+            throw std::runtime_error("TransportConfig: 'udp.port' out of range (1..65535) in " + path);
+        }
+
+        cfg.host = udp["host"].get<std::string>();
+        cfg.port = udp["port"].get<uint16_t>();
+    }
+
 
 } // namespace
 
@@ -114,47 +160,12 @@ TransportConfig ConfigLoader::loadTransportConfig(const std::string& path) {
     cfg.kind = jsonObject["kind"].get<std::string>();
 
     if (cfg.kind == "tcp") {
-        if (!jsonObject.contains("tcp") || !jsonObject["tcp"].is_object()) {
-            throw std::runtime_error("TransportConfig: missing 'tcp' object for kind='tcp' in " +
-                                     path);
-        }
-        const auto& tcp = jsonObject["tcp"];
 
-        if (!tcp.contains("host") || !tcp["host"].is_string()) {
-            throw std::runtime_error("TransportConfig: missing or invalid 'tcp.host' in " + path);
-        }
-        if (!tcp.contains("port") || !tcp["port"].is_number_integer()) {
-            throw std::runtime_error("TransportConfig: missing or invalid 'tcp.port' in " + path);
-        }
-        if (!isValidPortRange(tcp["port"])) {
-            throw std::runtime_error("TransportConfig: 'tcp.port' out of range (1..65535) in " +
-                                     path);
-        }
-
-        cfg.host = tcp["host"].get<std::string>();
-        cfg.port = tcp["port"].get<u_int16_t>();
-
+        parseTcpJsonObject(jsonObject, cfg, path);
 
     } else if (cfg.kind == "udp") {
 
-        if (!jsonObject.contains("udp") || !jsonObject["udp"].is_object()) {
-            throw std::runtime_error("TransportConfig: missing 'udp' object for kind='udp' in " +
-                                     path);
-        }
-        const auto& udp = jsonObject["udp"];
-
-        if (!udp.contains("host") || !udp["host"].is_string()) {
-            throw std::runtime_error("TransportConfig: missing or invalid 'udp.host' in " + path);
-        }
-        if (!udp.contains("port") || !udp["port"].is_number_integer()) {
-            throw std::runtime_error("TransportConfig: missing or invalid 'udp.port' in " + path);
-        }
-        if (!isValidPortRange(udp["port"])) {
-            throw std::runtime_error("TransportConfig: 'udp.port' out of range (1..65535) in " + path);
-        }
-
-        cfg.host = udp["host"].get<std::string>();
-        cfg.port = udp["port"].get<uint16_t>();
+        parseUdpJsonObject(jsonObject, cfg, path);
 
     } else {
         throw std::runtime_error("TransportConfig: unsupported kind '" + cfg.kind + "' in " + path);

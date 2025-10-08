@@ -90,7 +90,7 @@ std::size_t UdpSocket::send(const void* data, std::size_t len) const {
     const char* dataPtr = static_cast<const char*>(data);
 
     for (;;) {
-        const ssize_t bytesSent = ::send(fd_, dataPtr, len, 0);
+        const ssize_t bytesSent = ::send(fd_, dataPtr, len, 0); //NOLINT(misc-include-cleaner)
         if (bytesSent >= 0) {
             // For UDP, partial sends are not expected; verify all-or-error.
             if (static_cast<std::size_t>(bytesSent) != len) {

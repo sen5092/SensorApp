@@ -12,7 +12,7 @@
 class HardwareDataSource : public IDataSource {
 
     private:
-        static bool grab_one_frame_to_jpeg(const std::string& outfile); 
+        static bool grabFrameToJpeg(const std::string& outfile);
         static bool grabFrame(cv::Mat& frame);  // internal helper
 
     public:
@@ -25,7 +25,7 @@ class HardwareDataSource : public IDataSource {
 
         std::unordered_map<std::string, double> readAll() override;
 
-    
+
 
 
 };
