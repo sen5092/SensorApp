@@ -20,6 +20,9 @@
 #include "HardwareDataSource.hpp"
 #include "Logger.hpp"
 
+HardwareDataSource::HardwareDataSource() {
+    logCameraInfo();
+}
 
 std::unordered_map<std::string, double> HardwareDataSource::readAll() {
 
@@ -44,7 +47,7 @@ std::unordered_map<std::string, double> HardwareDataSource::readAll() {
     return values;
 }
 
-bool HardwareDataSource::grab_one_frame_to_jpeg(const std::string& outfile) {
+bool HardwareDataSource::grabFrameToJpeg(const std::string& outfile) {
     cv::Mat frame;
     if (!grabFrame(frame)) {
         return false;
@@ -73,5 +76,51 @@ bool HardwareDataSource::grabFrame(cv::Mat& frame) {
     }
 
     return true;
+}
+
+bool HardwareDataSource::ensureCameraAuthorized() const {
+    Logger::instance().info("Checking camera access...");
+
+    cv::VideoCapture cap(0, cv::CAP_ANY);
+    if (!cap.isOpened()) {
+        Logger::instance().error(
+            "Camera not authorized or unavailable. "
+            "If on macOS, grant access in System Settings > Privacy > Camera.");
+        return false;
+    }
+
+    Logger::instance().info("Camera authorized and available (Backend: " + cap.getBackendName() + ")");
+    cap.release();
+    return true;
+}
+
+
+void HardwareDataSource::logCameraInfo() {
+    const int index = 0;
+    cv::VideoCapture cap(index);
+
+    if (!cap.isOpened()) {
+        Logger::instance().error("Failed to open camera index " + std::to_string(index));
+        return;
+    }
+
+    Logger::instance().info("Camera opened successfully.");
+    Logger::instance().debug("Backend: " + cap.getBackendName());
+    Logger::instance().debug("Resolution: " +
+                             std::to_string(static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH))) +
+                             "x" +
+                             std::to_string(static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT))));
+
+    cv::Mat frame;
+    if (!cap.read(frame) || frame.empty()) {
+        Logger::instance().warning("Camera returned an empty or invalid frame.");
+        return;
+    }
+
+    cv::Scalar meanColor = cv::mean(frame);
+    Logger::instance().debug("Mean pixel intensity: [" +
+                             std::to_string(meanColor[0]) + ", " +
+                             std::to_string(meanColor[1]) + ", " +
+                             std::to_string(meanColor[2]) + "]");
 }
 

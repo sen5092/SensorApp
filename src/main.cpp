@@ -20,6 +20,11 @@
 #include <string_view>
 #include <thread>
 #include <memory>
+#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/core/mat.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/videoio.hpp>
 
 #ifdef USE_OPENCV
 #include "HardwareDataSource.hpp"
@@ -35,6 +40,10 @@ namespace {
     constexpr std::string_view DEFAULT_SENSOR_CFG = "config/sensor_config.json";
     constexpr std::string_view DEFAULT_TRANSPORT_CFG = "config/transport_config.json";
 
+    // Runtime: controlled by RUN_DURATION_SECONDS env var.
+    // If zero (the default) run indefinitely; otherwise run for that many seconds.
+    constexpr std::string_view kRunDurationEnv = "RUN_DURATION_SECONDS";
+
 #ifndef USE_OPENCV
     constexpr std::string_view DEFAULT_SIMULATION_CFG = "config/simulation_datasource_config.json";
 #endif
@@ -43,19 +52,30 @@ namespace {
 
 
 namespace {
-std::string envOrDefault(const char* name, const std::string_view defval) {
-    if (const char* envvar = std::getenv(name)) {
-        return envvar;
+    std::string envOrDefault(const char* name, const std::string_view defval) {
+        if (const char* envvar = std::getenv(name)) {
+            return envvar;
+        }
+        return std::string(defval);
     }
-    return std::string(defval);
-}
+
+    int envOrDefaultInt(const char* name, int defval) {
+        if (const char* env = std::getenv(name)) {
+            return std::atoi(env);  // returns 0 if invalid or not a number
+        }
+        return defval;
+    }
+
+
+
 } // namespace
 
-int main(int /*argc*/, const char* /*argv*/[]) {
+int main(int /*argc*/, const char* /*argv*/[]) {    // NOLINT(bugprone-exception-escape)
 
     try {
 
         Logger::instance().info("Sensor starting up...");
+
 
          // 1. Load config
         const std::string sensorCfgPath = envOrDefault("SENSOR_CONFIG", DEFAULT_SENSOR_CFG);
@@ -65,6 +85,9 @@ int main(int /*argc*/, const char* /*argv*/[]) {
 
 #ifdef USE_OPENCV
     HardwareDataSource datasource;
+    if (!datasource.ensureCameraAuthorized()) {
+        return EXIT_FAILURE;
+    }
 #else
     const std::string simDataCfgPath = envOrDefault("SIMULATION_DATASOURCE_CONFIG", DEFAULT_SIMULATION_CFG);
     SimulationDataSource datasource(simDataCfgPath);
@@ -95,7 +118,9 @@ int main(int /*argc*/, const char* /*argv*/[]) {
             }
         });
 
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        // 4. Main thread: wait for termination signal (Ctrl-C) or optional timeout
+        //const int runDuration = envOrDefaultInt(kRunDurationEnv.data(), 12);
+        std::this_thread::sleep_for(std::chrono::seconds(10));
         running = false;
 
         // Wait for sensor thread to exit

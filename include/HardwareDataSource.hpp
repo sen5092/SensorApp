@@ -12,20 +12,23 @@
 class HardwareDataSource : public IDataSource {
 
     private:
-        static bool grab_one_frame_to_jpeg(const std::string& outfile); 
+        static void logCameraInfo();
+        // --- Internal helpers ---
+        static bool grabFrameToJpeg(const std::string& outfile);
         static bool grabFrame(cv::Mat& frame);  // internal helper
 
     public:
 
         // --- Construction ---
-        HardwareDataSource() = default;
+        HardwareDataSource();
 
         // --- Data Generation ---
         //double generate(const std::string &metricName);
 
         std::unordered_map<std::string, double> readAll() override;
 
-    
+        [[nodiscard]] static bool ensureCameraAuthorized() const;
+
 
 
 };

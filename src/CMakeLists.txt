@@ -1,8 +1,7 @@
 # Clang tidy should only run on the library and main app, not tests, so we place it in this scope.
 set(CMAKE_CXX_CLANG_TIDY
     clang-tidy;
-    -header-filter=^${CMAKE_SOURCE_DIR}/include;
-    -header-filter=^${CMAKE_SOURCE_DIR}/src;
+    -quiet
 )
 
 # Build shared library with reusable code
