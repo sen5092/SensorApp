@@ -61,8 +61,6 @@ CheckOptions:
     value: '_'
 
   # Constants and macros
-  - key: readability-identifier-naming.GlobalConstantCase
-    value: UPPER_CASE
   - key: readability-identifier-naming.ClassConstantCase
     value: CamelCase
   - key: readability-identifier-naming.MacroDefinitionCase

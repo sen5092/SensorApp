@@ -14,3 +14,12 @@ external/
 # Ignore compiled object files and executables
 *.profraw
 *.profdata
+
+# Ignore log files
+*.log
+
+# Ignore frame captures
+*.png
+*.jpg
+*.jpeg
+*.bmp

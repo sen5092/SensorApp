@@ -14,6 +14,7 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/videoio.hpp>
+#include <opencv2/core/types.hpp>
 #include <unordered_map>
 #include <string>
 #include "HardwareDataSource.hpp"
@@ -76,7 +77,7 @@ bool HardwareDataSource::grabFrame(cv::Mat& frame) {
     return true;
 }
 
-bool HardwareDataSource::ensureCameraAuthorized() const {
+bool HardwareDataSource::ensureCameraAuthorized() {
     Logger::instance().info("Checking camera access...");
 
     cv::VideoCapture cap(0, cv::CAP_ANY);

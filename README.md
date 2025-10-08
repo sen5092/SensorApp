@@ -1,8 +1,8 @@
 # 📡 SensorApp
 
-A modular C++17 application for simulating and interfacing with hardware sensors.  
-The app supports **real camera input via OpenCV** as well as **simulation mode** with generated data.  
-Collected sensor data is packaged into structured JSON and sent over UDP/TCP sockets for integration with other systems.  
+A modular C++17 application for simulating and interfacing with hardware sensors.
+The app supports **real camera input via OpenCV** as well as **simulation mode** with generated data.
+Collected sensor data is packaged into structured JSON and sent over UDP/TCP sockets for integration with other systems.
 
 ---
 
@@ -57,8 +57,32 @@ cmake -S . -B build -DUSE_OPENCV=ON -DOpenCV_DIR=/path/to/opencv/lib/cmake/openc
 ./build/src/Sensor
 ```
 
-The app will load sensor configuration from `config/` (copied to the build tree by CMake).  
-Captured data is output as line-delimited JSON and can be inspected with tools like `nc` or Wireshark.  
+By default, the application runs indefinitely, continuously capturing data from the selected source (hardware or simulation) and sending it over the configured transport layer.
+
+To stop the application:
+- Press **Ctrl-C** for graceful shutdown.
+- Or set a runtime limit using the `RUN_DURATION_SECONDS` environment variable (see below).
+
+Log output is printed to the console and written to a file named `sensor.log` in the working directory.
+
+---
+
+## 🌱 Environment Variables
+
+The following environment variables control runtime behavior:
+
+| Variable                      | Description                                                                 | Default                             |
+|------------------------------|-----------------------------------------------------------------------------|-------------------------------------|
+| `SENSOR_CONFIG`              | Path to the sensor configuration JSON file                                  | `config/sensor_config.json`         |
+| `TRANSPORT_CONFIG`           | Path to the transport configuration JSON file                               | `config/transport_config.json`      |
+| `SIMULATION_DATASOURCE_CONFIG` | Path to simulation-specific config (only used when `USE_OPENCV=OFF`)      | `config/simulation_datasource_config.json` |
+| `RUN_DURATION_SECONDS`       | Optional runtime duration in seconds. If set to 0 or not set, runs forever. | `0` (infinite)                      |
+
+### 💡 Example (run for 10 seconds only):
+
+```bash
+RUN_DURATION_SECONDS=10 ./build/src/Sensor
+```
 
 ---
 
