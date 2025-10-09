@@ -2,7 +2,7 @@ name: Build, Analyze, and Test
 
 on:
   push:
-    branches: ["main", "dev", "feature/**"]
+    branches: ["main", "dev", "feature/**", "chore/**"]
   pull_request:
     branches: ["main", "dev"]
 
@@ -57,6 +57,19 @@ jobs:
       # ------------------------------------------------------------------------
       # Run Tests with Coverage
       # ------------------------------------------------------------------------
+      - name: Debug coverage instrumentation
+        run: |
+          echo "==> Checking binary and coverage flags"
+          file build/test/SensorTests || true
+          otool -L build/test/SensorTests | grep clang_rt.profile || echo "⚠️ No coverage runtime linked"
+          echo "==> Checking current directory and expected coverage path"
+          pwd
+          echo "Expecting LLVM_PROFILE_FILE=${GITHUB_WORKSPACE}/build/test/coverage_%p.profraw"
+          export LLVM_PROFILE_FILE="${GITHUB_WORKSPACE}/build/test/coverage_%p.profraw"
+          ctest --preset test --output-on-failure
+          ls -l build/test/*.profraw || echo "⚠️ No .profraw files found"
+
+
       - name: Run unit tests with coverage
         run: |
           echo "==> Running unit tests with coverage instrumentation"
