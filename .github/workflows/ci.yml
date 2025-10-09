@@ -18,26 +18,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache Homebrew
-        id: brew-cache
-        uses: actions/cache@v4
+      - name: Restore Homebrew cache
+        uses: actions/cache/restore@v4
         with:
-          path: |
-            /Users/runner/Library/Caches/Homebrew
-            /opt/homebrew/Cellar/opencv
-            /opt/homebrew/Cellar/llvm
-            /opt/homebrew/Cellar/cmake
-            /opt/homebrew/Cellar/ninja
-          key: ${{ runner.os }}-brew-${{ hashFiles('CMakePresets.json') }}
-          restore-keys: |
-            ${{ runner.os }}-brew-
+          path: /Users/runner/Library/Caches/Homebrew
+          key: macOS-brew-${{ hashFiles('CMakePresets.json') }}
+          restore-keys: macOS-brew-
 
-      - name: Install dependencies (Homebrew)
+      - name: Install dependencies
         run: |
           brew update
           brew install cmake ninja llvm opencv || true
           echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
           export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+
+      - name: Save Homebrew cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: /Users/runner/Library/Caches/Homebrew
+          key: macOS-brew-${{ hashFiles('CMakePresets.json') }}
+
 
 
       - name: Verify compiler
@@ -54,6 +55,14 @@ jobs:
       - name: Build (test preset)
         run: cmake --build --preset test -j$(sysctl -n hw.logicalcpu)
 
+      - name: Build test binary
+        run: |
+          pwd
+          ls
+          mkdir -p build/test
+          cmake --build --preset test --target SensorTests -j$(sysctl -n hw.logicalcpu)
+
+
       # ------------------------------------------------------------------------
       # Run Tests with Coverage
       # ------------------------------------------------------------------------
@@ -61,19 +70,18 @@ jobs:
         run: |
           echo "==> Checking binary and coverage flags"
           file build/test/SensorTests || true
-          otool -L build/test/SensorTests | grep clang_rt.profile || echo "⚠️ No coverage runtime linked"
+          otool -L build/test/SensorTests | grep clang_rt.profile || echo "No coverage runtime linked"
           echo "==> Checking current directory and expected coverage path"
           pwd
           echo "Expecting LLVM_PROFILE_FILE=${GITHUB_WORKSPACE}/build/test/coverage_%p.profraw"
           export LLVM_PROFILE_FILE="${GITHUB_WORKSPACE}/build/test/coverage_%p.profraw"
           ctest --preset test --output-on-failure
-          ls -l build/test/*.profraw || echo "⚠️ No .profraw files found"
+          ls -l build/test/*.profraw || echo "No .profraw files found"
 
 
       - name: Run unit tests with coverage
         run: |
           echo "==> Running unit tests with coverage instrumentation"
-          mkdir -p build/test
           export LLVM_PROFILE_FILE="build/test/coverage_%p.profraw"
           ctest --preset test --output-on-failure
 
