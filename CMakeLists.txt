@@ -11,9 +11,9 @@ project(SensorApp
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Default Debug build
+# Default build type → Release (optimized, production)
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
@@ -24,9 +24,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # -----------------
 # Options (User Toggles)
 # -----------------
-option(USE_CAMERA "Use hardware camera features" ON)
-option(ENABLE_SANITIZERS "Enable AddressSanitizer/UBSan in Debug builds AND not unit testing!" OFF)
-option(ENABLE_COVERAGE "Enable code coverage" OFF)
+option(ENABLE_MOCK_CAMERA "Use MockCamera for testing" OFF)
+option(ENABLE_SANITIZERS "Enable AddressSanitizer/UBSan in Debug builds only" OFF)
+option(ENABLE_COVERAGE "Enable code coverage instrumentation" OFF)
 option(ENABLE_STRICT_WARNINGS "Enable strict compiler warnings" ON)
 
 # -----------------

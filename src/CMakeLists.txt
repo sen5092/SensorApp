@@ -24,16 +24,22 @@ set(CONFIG_FILES
 find_package(OpenCV REQUIRED)
 message(STATUS "Found OpenCV ${OpenCV_VERSION}")
 
-if (USE_CAMERA)
-    message(STATUS "Building with camera support")
-    add_compile_definitions(USE_CAMERA)
 
+# ------------------------------------------------------------------------------
+# Camera selection
+# ------------------------------------------------------------------------------
+if(ENABLE_MOCK_CAMERA)
+    message(STATUS "Building with MockCamera")
+    add_compile_definitions(USE_MOCK_CAMERA)
 else()
-    message(STATUS "Building with mock camera")
-    list(APPEND APP_SOURCES
-        MockCamera.cpp
-    )
+    message(STATUS "Building with HardwareCamera")
 endif()
+
+
+
+# ------------------------------------------------------------------------------
+# Library target
+# ------------------------------------------------------------------------------
 
 # Set up the SensorLib library target
 add_library(SensorLib ${APP_SOURCES})
@@ -41,6 +47,7 @@ target_include_directories(SensorLib PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+
 # Link OpenCV into SensorLib (so code inside your lib can use it)
 target_include_directories(SensorLib SYSTEM PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(SensorLib PRIVATE ${OpenCV_LIBS})
@@ -50,6 +57,9 @@ enable_sanitizers(SensorLib)
 enable_coverage(SensorLib)
 
 
+# ------------------------------------------------------------------------------
+# Main executable
+# ------------------------------------------------------------------------------
 add_executable(Sensor main.cpp)
 target_link_libraries(Sensor PRIVATE SensorLib)
 enable_strict_warnings(Sensor)

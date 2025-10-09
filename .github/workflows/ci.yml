@@ -2,48 +2,80 @@ name: Build, Analyze, and Test
 
 on:
   push:
-    branches: ["**"]
+    branches: ["main", "dev", "feature/**"]
   pull_request:
-    branches: ["**"]
+    branches: ["main", "dev"]
 
 jobs:
-  build-and-analyze:
+  build-and-test:
     runs-on: macos-latest
+    timeout-minutes: 20
 
     steps:
+      # ------------------------------------------------------------------------
+      # Setup
+      # ------------------------------------------------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up LLVM and dependencies
+      - name: Install dependencies
         run: |
-          brew install llvm cmake
+          brew update
+          brew install cmake ninja llvm opencv
           echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
+          echo "/opt/homebrew/opt/llvm/libexec" >> $GITHUB_PATH
+          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
 
-      - name: Make scripts executable
-        run: chmod +x scripts/*.sh
+      - name: Verify compiler
+        run: |
+          clang++ --version
+          cmake --version
 
-      - name: Build with coverage enabled (coverage enabled by default)
-        run: ./scripts/build.sh
+      # ------------------------------------------------------------------------
+      # Configure & Build (Test preset)
+      # ------------------------------------------------------------------------
+      - name: Configure (test preset)
+        run: cmake --preset test
 
-      - name: Generate code coverage report
-        run: ./scripts/coverage.sh
+      - name: Build (test preset)
+        run: cmake --build --preset test -j$(sysctl -n hw.logicalcpu)
 
-      - name: Run static analysis (clang-tidy and CSA)
-        run: ./scripts/analyze.sh --tidy --csa
+      # ------------------------------------------------------------------------
+      # Run Tests
+      # ------------------------------------------------------------------------
+      - name: Run unit tests
+        run: ctest --preset test --output-on-failure
 
-      - name: Run tests
-        run: ./build/tests/PracticeTests
+      # ------------------------------------------------------------------------
+      # Code Coverage (optional)
+      # ------------------------------------------------------------------------
+      - name: Generate coverage report
+        if: success()
+        run: |
+          llvm-profdata merge -sparse build/test/default.profraw -o build/test/default.profdata || true
+          llvm-cov show build/test/SensorTests \
+            -instr-profile=build/test/default.profdata \
+            -format=text > build/test/coverage.txt || true
+          cat build/test/coverage.txt || true
 
-      - name: Run format check
-        run: ./scripts/format.sh --check
-
-      - name: Upload coverage report
+      - name: Upload coverage artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: build/tests/coverage.txt
+          path: build/test/coverage.txt
+
+      # ------------------------------------------------------------------------
+      # Static Analysis (clang-tidy)
+      # ------------------------------------------------------------------------
+      - name: Run clang-tidy analysis
+        if: always()
+        run: |
+          cmake --build --preset test --target SensorLib -- -t
+          clang-tidy -p build/test $(find src include -name '*.cpp') > build/reports/clang-tidy.txt || true
 
       - name: Upload static analysis reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: static-analysis

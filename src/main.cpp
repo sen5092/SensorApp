@@ -45,8 +45,8 @@
 #include <memory>
 #include <utility>
 
-#ifdef USE_CAMERA
-#include "OpenCvCamera.hpp"
+#ifndef USE_MOCK_CAMERA
+#include "HardwareCamera.hpp"
 #else
 #include "MockCamera.hpp"
 #endif
@@ -126,11 +126,11 @@ int main(int /*argc*/, const char* /*argv*/[]) {    // NOLINT(bugprone-exception
         const auto sensorCfg = ConfigLoader::loadSensorConfig(sensorCfgPath);
         const auto transportCfg = ConfigLoader::loadTransportConfig(transportCfgPath);
 
-#ifdef USE_CAMERA
+#ifndef USE_MOCK_CAMERA
 
     // Try to open the default camera (index 0)
     // If it fails, log an error and exit.
-    auto camera = std::make_shared<OpenCvCamera>();
+    auto camera = std::make_shared<HardwareCamera>();
     if(camera->open(0)){
         Logger::instance().info("Camera opened successfully.");
     } else {

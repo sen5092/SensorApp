@@ -1,0 +1,87 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 26
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "17",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "displayName": "Release (optimized, real camera)",
+      "description": "Production build with hardware camera enabled",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ENABLE_MOCK_CAMERA": "OFF",
+        "ENABLE_COVERAGE": "OFF",
+        "ENABLE_SANITIZERS": "OFF",
+        "ENABLE_STRICT_WARNINGS": "ON"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "displayName": "Debug (developer build, real camera)",
+      "description": "Developer build with sanitizers and debug symbols",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_MOCK_CAMERA": "OFF",
+        "ENABLE_COVERAGE": "OFF",
+        "ENABLE_SANITIZERS": "ON",
+        "ENABLE_STRICT_WARNINGS": "ON"
+      }
+    },
+    {
+      "name": "test",
+      "inherits": "base",
+      "displayName": "Unit Tests (mock camera, coverage)",
+      "description": "Build for running Catch2 unit tests with mock camera and coverage enabled",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_MOCK_CAMERA": "ON",
+        "ENABLE_COVERAGE": "ON",
+        "ENABLE_SANITIZERS": "OFF",
+        "ENABLE_STRICT_WARNINGS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "jobs": 8
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "jobs": 8
+    },
+    {
+      "name": "test",
+      "configurePreset": "test",
+      "jobs": 8
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "test",
+      "configurePreset": "test",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1
+      }
+    }
+  ]
+}
