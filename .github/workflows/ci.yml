@@ -18,13 +18,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Cache Homebrew
+        id: brew-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /Users/runner/Library/Caches/Homebrew
+            /opt/homebrew/Cellar/opencv
+            /opt/homebrew/Cellar/llvm
+            /opt/homebrew/Cellar/cmake
+            /opt/homebrew/Cellar/ninja
+          key: ${{ runner.os }}-brew-${{ hashFiles('CMakePresets.json') }}
+          restore-keys: |
+            ${{ runner.os }}-brew-
+
+      - name: Install dependencies (Homebrew)
         run: |
           brew update
-          brew install cmake ninja llvm opencv
+          brew install cmake ninja llvm opencv || true
           echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
-          echo "/opt/homebrew/opt/llvm/libexec" >> $GITHUB_PATH
           export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+
 
       - name: Verify compiler
         run: |
@@ -41,29 +55,43 @@ jobs:
         run: cmake --build --preset test -j$(sysctl -n hw.logicalcpu)
 
       # ------------------------------------------------------------------------
-      # Run Tests
+      # Run Tests with Coverage
       # ------------------------------------------------------------------------
-      - name: Run unit tests
-        run: ctest --preset test --output-on-failure
+      - name: Run unit tests with coverage
+        run: |
+          echo "==> Running unit tests with coverage instrumentation"
+          mkdir -p build/test
+          export LLVM_PROFILE_FILE="build/test/coverage_%p.profraw"
+          ctest --preset test --output-on-failure
 
-      # ------------------------------------------------------------------------
-      # Code Coverage (optional)
-      # ------------------------------------------------------------------------
-      - name: Generate coverage report
+      - name: Generate HTML coverage report
         if: success()
         run: |
-          llvm-profdata merge -sparse build/test/default.profraw -o build/test/default.profdata || true
-          llvm-cov show build/test/SensorTests \
-            -instr-profile=build/test/default.profdata \
-            -format=text > build/test/coverage.txt || true
-          cat build/test/coverage.txt || true
+          echo "==> Merging raw profiles"
+          llvm-profdata merge -sparse build/test/coverage_*.profraw \
+            -o build/test/coverage.profdata || true
 
-      - name: Upload coverage artifact
+          echo "==> Generating HTML coverage summary"
+          mkdir -p build/test/html-coverage
+          llvm-cov show build/test/SensorTests \
+            -instr-profile=build/test/coverage.profdata \
+            --ignore-filename-regex='external|/usr/' \
+            -format=html \
+            -output-dir=build/test/html-coverage
+
+          echo "==> Generating overall summary table"
+          llvm-cov report build/test/SensorTests \
+            -instr-profile=build/test/coverage.profdata > build/test/html-coverage/summary.txt
+
+          echo "==> Coverage report generated at: build/test/html-coverage/index.html"
+
+      - name: Upload HTML coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: build/test/coverage.txt
+          name: html-coverage-report
+          path: build/test/html-coverage/
+
 
       # ------------------------------------------------------------------------
       # Static Analysis (clang-tidy)
@@ -71,7 +99,8 @@ jobs:
       - name: Run clang-tidy analysis
         if: always()
         run: |
-          cmake --build --preset test --target SensorLib -- -t
+          cmake --build --preset test --target SensorLib
+          mkdir -p build/reports
           clang-tidy -p build/test $(find src include -name '*.cpp') > build/reports/clang-tidy.txt || true
 
       - name: Upload static analysis reports
@@ -80,3 +109,47 @@ jobs:
         with:
           name: static-analysis
           path: build/reports/
+
+  # ---------------------------------------------------------------------------
+  # PRODUCTION BUILD (Release + Real Camera)
+  # ---------------------------------------------------------------------------
+  build-release:
+    runs-on: macos-latest
+    needs: build-and-test
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Restore Homebrew cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /Users/runner/Library/Caches/Homebrew
+            /opt/homebrew/Cellar/opencv
+            /opt/homebrew/Cellar/llvm
+            /opt/homebrew/Cellar/cmake
+            /opt/homebrew/Cellar/ninja
+          key: ${{ runner.os }}-brew-${{ hashFiles('CMakePresets.json') }}
+          restore-keys: |
+            ${{ runner.os }}-brew-
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install cmake ninja llvm opencv || true
+          echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
+          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+
+      - name: Configure (release preset)
+        run: cmake --preset release
+
+      - name: Build (release preset)
+        run: cmake --build --preset release -j$(sysctl -n hw.logicalcpu)
+
+      - name: Upload production binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: SensorApp-release-binary
+          path: build/release/Sensor
