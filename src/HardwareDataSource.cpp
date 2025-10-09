@@ -41,11 +41,12 @@ std::unordered_map<std::string, double> HardwareDataSource::readAll() {
         values["frame_height"] = static_cast<double>(frame.rows);
         values["channels"]     = static_cast<double>(frame.channels());
         values["brightness"]   = cv::mean(frame)[0]; // simple metric
+        values["frame_status"] = 1.0;
 
         // snapshot saved automatically for debugging
         cv::imwrite("last_frame.jpg", frame);
-        values["frame_status"] = 1.0;
     } else {
+        values["frame_width"] = 0.0;
         values["frame_status"] = 0.0;
     }
 

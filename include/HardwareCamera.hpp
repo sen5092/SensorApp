@@ -1,9 +1,9 @@
-// include/OpenCVCamera.hpp
+// include/HardwareCamera.hpp
 #pragma once
 #include "ICamera.hpp"
 #include <opencv2/videoio.hpp>
 
-class OpenCvCamera : public ICamera {
+class HardwareCamera : public ICamera {
 public:
     bool open(int index) override {
         return cap_.open(index);
