@@ -56,7 +56,7 @@ jobs:
           LLVM_PROFILE_FILE: "${{ github.workspace }}/build/test/coverage_%p.profraw"
         run: |
           echo "==> Running SensorTests with coverage enabled"
-          ./tests/SensorTests --order rand --success --durations yes --use-colour yes
+          ./tests/SensorTests --order rand --success --durations yes
 
       # --- Debug: confirm raw profiles exist ---
       - name: Debug coverage output files
