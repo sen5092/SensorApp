@@ -136,12 +136,12 @@ jobs:
           cmake --preset release
 
       # --- Build production binary ---
-      - name: Build SensorApp (Release)
-        run: cmake --build --preset release --target SensorApp -j$(sysctl -n hw.logicalcpu)
+      - name: Build Sensor (Release)
+        run: cmake --build --preset release --target Sensor -j$(sysctl -n hw.logicalcpu)
 
       # --- Upload built release binary as artifact ---
       - name: Upload release binary
         uses: actions/upload-artifact@v4
         with:
-          name: SensorApp-release
-          path: build/release/SensorApp
+          name: Sensor-release
+          path: build/release/Sensor
