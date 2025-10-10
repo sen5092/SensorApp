@@ -7,6 +7,9 @@ on:
     branches: [ main ]
 
 jobs:
+  # ============================================
+  # == 1. Build + Test + Coverage (macOS) ======
+  # ============================================
   build-and-test:
     name: Build and Test (macOS)
     runs-on: macos-latest
@@ -80,9 +83,65 @@ jobs:
             -ignore-filename-regex='(external/.*|tests/.*)' \
             -Xdemangler=llvm-cxxfilt || true
 
+          echo "==> Generating coverage summary text file"
+          llvm-cov report "${{ github.workspace }}/build/test/tests/SensorTests" \
+            -instr-profile="${{ github.workspace }}/build/test/coverage.profdata" \
+            -ignore-filename-regex='(external/|tests/)' > \
+            "${{ github.workspace }}/build/test/coverage-summary.txt" || true
+
       # --- Upload coverage summary as artifact ---
       - name: Upload HTML coverage artifact
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: ${{ github.workspace }}/build/test/coverage-report
+          path: |
+            ${{ github.workspace }}/build/test/coverage-report
+            ${{ github.workspace }}/build/test/coverage-summary.txt
+
+
+  # ============================================
+  # == 2. Production Release Build (macOS) =====
+  # ============================================
+  build-release:
+    name: Build Release (macOS)
+    runs-on: macos-latest
+    needs: build-and-test  # Only build release if tests pass
+
+    steps:
+      # --- Checkout source ---
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --- Restore cached Homebrew bottles ---
+      - name: Restore Homebrew bottles
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew/downloads
+          key: macos-brew-bottles-${{ runner.os }}-v1
+          restore-keys: macos-brew-bottles-
+          lookup-only: true
+
+      # --- Install dependencies ---
+      - name: Install dependencies
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        run: |
+          brew install --force-bottle llvm opencv
+          echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
+          brew link --overwrite opencv
+
+      # --- Configure release build (optimized, real camera) ---
+      - name: Configure CMake (Release)
+        run: |
+          cmake --preset release
+
+      # --- Build production binary ---
+      - name: Build SensorApp (Release)
+        run: cmake --build --preset release --target SensorApp -j$(sysctl -n hw.logicalcpu)
+
+      # --- Upload built release binary as artifact ---
+      - name: Upload release binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: SensorApp-release
+          path: build/release/SensorApp
