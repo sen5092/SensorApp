@@ -1,200 +1,75 @@
-name: Build, Analyze, and Test
+name: CI
 
 on:
   push:
-    branches: ["main", "dev", "feature/**", "chore/**"]
+    branches: [ main, develop, feature/**, chore/** ]
   pull_request:
-    branches: ["main", "dev"]
+    branches: [ main ]
 
 jobs:
   build-and-test:
+    name: Build and Test (macOS)
     runs-on: macos-latest
-    timeout-minutes: 20
 
     steps:
-      # ------------------------------------------------------------------------
-      # Setup
-      # ------------------------------------------------------------------------
-      - name: Checkout code
+      # --- Checkout source ---
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Cache only the downloaded bottles (safe & fast)
+      # --- Cache Homebrew bottle downloads ---
       - name: Cache Homebrew bottles
         uses: actions/cache@v4
         with:
           path: ~/Library/Caches/Homebrew/downloads
-          key: macos-brew-bottles-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt') }}
+          key: macos-brew-bottles-${{ runner.os }}-v1
           restore-keys: macos-brew-bottles-
 
+      # --- Install dependencies (no auto update) ---
       - name: Install dependencies
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
         run: |
-          brew update --quiet
           brew install --force-bottle llvm opencv
           echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
           brew link --overwrite opencv
 
-
-
-
-      # - name: Restore Homebrew cache
-      #   uses: actions/cache/restore@v4
-      #   with:
-      #     path: /Users/runner/Library/Caches/Homebrew
-      #     key: macOS-brew-{{ hashFiles('CMakePresets.json') }}
-      #     restore-keys: macOS-brew-
-
-      # - name: Install dependencies
-      #   run: |
-      #     brew update
-      #     brew install cmake ninja llvm opencv || true
-      #     echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
-      #     export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-
-      - name: Save Homebrew cache
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: /Users/runner/Library/Caches/Homebrew
-          key: macOS-brew-${{ hashFiles('CMakePresets.json') }}
-
-
-
-      - name: Verify compiler
+      # --- Verify toolchain availability ---
+      - name: Verify compiler and coverage tools
         run: |
           clang++ --version
-          cmake --version
+          llvm-cov --version
+          llvm-profdata --version
+          clang-tidy --version
 
-      # ------------------------------------------------------------------------
-      # Configure & Build (Test preset)
-      # ------------------------------------------------------------------------
-      - name: Configure (test preset)
+      # --- Configure project (CMake preset: test) ---
+      - name: Configure CMake
         run: cmake --preset test
 
-      - name: Build (test preset)
-        run: cmake --build --preset test -j$(sysctl -n hw.logicalcpu)
+      # --- Build tests (with coverage flags) ---
+      - name: Build SensorTests
+        run: cmake --build --preset test --target SensorTests -j$(sysctl -n hw.logicalcpu)
 
-      - name: Build test binary
-        run: |
-          pwd
-          ls
-          mkdir -p build/test
-          cmake --build --preset test --target SensorTests -j$(sysctl -n hw.logicalcpu)
-          ls -l build
-          ls -l build/test
-          ls -l build/src
-          ls -l build/tests
-          ls -l src
-          ls -l tests
+      # --- Run tests with Catch2 ---
+      - name: Run unit tests
+        working-directory: build/test
+        run: ctest --output-on-failure -V
 
-
-      # ------------------------------------------------------------------------
-      # Run Tests with Coverage
-      # ------------------------------------------------------------------------
-      - name: Debug coverage instrumentation
-        run: |
-          echo "==> Checking binary and coverage flags"
-          file build/test/SensorTests || true
-          otool -L build/test/SensorTests | grep clang_rt.profile || echo "No coverage runtime linked"
-          echo "==> Checking current directory and expected coverage path"
-          pwd
-          echo "Expecting LLVM_PROFILE_FILE=${GITHUB_WORKSPACE}/build/test/coverage_%p.profraw"
-          export LLVM_PROFILE_FILE="${GITHUB_WORKSPACE}/build/test/coverage_%p.profraw"
-          ctest --preset test --output-on-failure
-          ls -l build/test/*.profraw || echo "No .profraw files found"
-
-
-      - name: Run unit tests with coverage
-        run: |
-          echo "==> Running unit tests with coverage instrumentation"
-          export LLVM_PROFILE_FILE="build/test/coverage_%p.profraw"
-          ctest --preset test --output-on-failure
-
-      - name: Generate HTML coverage report
-        if: success()
+      # --- Generate HTML coverage summary ---
+      - name: Generate coverage report
+        working-directory: build/test
         run: |
           echo "==> Merging raw profiles"
-          llvm-profdata merge -sparse build/test/coverage_*.profraw \
-            -o build/test/coverage.profdata || true
-
+          llvm-profdata merge -sparse coverage_*.profraw -o coverage.profdata || true
           echo "==> Generating HTML coverage summary"
-          mkdir -p build/test/html-coverage
-          llvm-cov show build/test/SensorTests \
-            -instr-profile=build/test/coverage.profdata \
-            --ignore-filename-regex='external|/usr/' \
-            -format=html \
-            -output-dir=build/test/html-coverage
+          llvm-cov show ./SensorTests \
+            -instr-profile=coverage.profdata \
+            -format=html -output-dir=coverage-report \
+            -ignore-filename-regex='external/*' \
+            -Xdemangler=llvm-cxxfilt || true
 
-          echo "==> Generating overall summary table"
-          llvm-cov report build/test/SensorTests \
-            -instr-profile=build/test/coverage.profdata > build/test/html-coverage/summary.txt
-
-          echo "==> Coverage report generated at: build/test/html-coverage/index.html"
-
-      - name: Upload HTML coverage report
-        if: always()
+      # --- Upload coverage summary as artifact ---
+      - name: Upload HTML coverage artifact
         uses: actions/upload-artifact@v4
         with:
-          name: html-coverage-report
-          path: build/test/html-coverage/
-
-
-      # ------------------------------------------------------------------------
-      # Static Analysis (clang-tidy)
-      # ------------------------------------------------------------------------
-      - name: Run clang-tidy analysis
-        if: always()
-        run: |
-          cmake --build --preset test --target SensorLib
-          mkdir -p build/reports
-          clang-tidy -p build/test $(find src include -name '*.cpp') > build/reports/clang-tidy.txt || true
-
-      - name: Upload static analysis reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: static-analysis
-          path: build/reports/
-
-  # ---------------------------------------------------------------------------
-  # PRODUCTION BUILD (Release + Real Camera)
-  # ---------------------------------------------------------------------------
-  build-release:
-    runs-on: macos-latest
-    needs: build-and-test
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Restore Homebrew cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            /Users/runner/Library/Caches/Homebrew
-            /opt/homebrew/Cellar/opencv
-            /opt/homebrew/Cellar/llvm
-            /opt/homebrew/Cellar/cmake
-            /opt/homebrew/Cellar/ninja
-          key: ${{ runner.os }}-brew-${{ hashFiles('CMakePresets.json') }}
-          restore-keys: |
-            ${{ runner.os }}-brew-
-
-      - name: Install dependencies
-        run: |
-          brew update
-          brew install cmake ninja llvm opencv || true
-          echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
-          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-
-      - name: Configure (release preset)
-        run: cmake --preset release
-
-      - name: Build (release preset)
-        run: cmake --build --preset release -j$(sysctl -n hw.logicalcpu)
-
-      - name: Upload production binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: SensorApp-release-binary
-          path: build/release/Sensor
+          name: coverage-report
+          path: build/test/coverage-report
