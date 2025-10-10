@@ -18,19 +18,38 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Restore Homebrew cache
-        uses: actions/cache/restore@v4
+      # Cache only the downloaded bottles (safe & fast)
+      - name: Cache Homebrew bottles
+        uses: actions/cache@v4
         with:
-          path: /Users/runner/Library/Caches/Homebrew
-          key: macOS-brew-${{ hashFiles('CMakePresets.json') }}
-          restore-keys: macOS-brew-
+          path: ~/Library/Caches/Homebrew/downloads
+          key: macos-brew-bottles-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: macos-brew-bottles-
 
-      - name: Install dependencies
+      # Install just what you need
+      - name: Install OpenCV (bottle)
         run: |
-          brew update
-          brew install cmake ninja llvm opencv || true
-          echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
-          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+          brew update --quiet
+          # cmake, ninja, and llvm already exist on macOS runners, but install is harmless if you prefer:
+          # brew install cmake ninja llvm
+          brew install --force-bottle opencv
+          brew link --overwrite opencv
+
+
+
+      # - name: Restore Homebrew cache
+      #   uses: actions/cache/restore@v4
+      #   with:
+      #     path: /Users/runner/Library/Caches/Homebrew
+      #     key: macOS-brew-{{ hashFiles('CMakePresets.json') }}
+      #     restore-keys: macOS-brew-
+
+      # - name: Install dependencies
+      #   run: |
+      #     brew update
+      #     brew install cmake ninja llvm opencv || true
+      #     echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
+      #     export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
 
       - name: Save Homebrew cache
         if: always()
