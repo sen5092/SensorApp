@@ -77,7 +77,7 @@ jobs:
             -instr-profile="${{ github.workspace }}/build/test/coverage.profdata" \
             -format=html \
             -output-dir="${{ github.workspace }}/build/test/coverage-report" \
-            -ignore-filename-regex='external/*' \
+            -ignore-filename-regex='(external/.*|tests/.*)' \
             -Xdemangler=llvm-cxxfilt || true
 
       # --- Upload coverage summary as artifact ---

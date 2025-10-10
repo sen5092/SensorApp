@@ -11,7 +11,7 @@ LLVMCOV="$LLVM_BIN/llvm-cov"
 BUILD_DIR="build-coverage"
 ABS_BUILD_DIR="$(pwd)/$BUILD_DIR"
 REPORT_DIR="$ABS_BUILD_DIR/coverage-report"
-SRC_DIRS="$(pwd)/src"
+SRC_DIRS="$(pwd)/src $(pwd)/include"
 
 # -------- 1) Configure & build with coverage flags -------------------------
 echo "==> Configuring (coverage ON) into $BUILD_DIR"
