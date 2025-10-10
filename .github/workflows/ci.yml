@@ -61,6 +61,10 @@ jobs:
           ls
           mkdir -p build/test
           cmake --build --preset test --target SensorTests -j$(sysctl -n hw.logicalcpu)
+          ls -l build
+          ls -l build/test
+          ls -l src
+          ls -l tests
 
 
       # ------------------------------------------------------------------------
