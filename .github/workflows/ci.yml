@@ -26,14 +26,13 @@ jobs:
           key: macos-brew-bottles-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: macos-brew-bottles-
 
-      # Install just what you need
-      - name: Install OpenCV (bottle)
+      - name: Install dependencies
         run: |
           brew update --quiet
-          # cmake, ninja, and llvm already exist on macOS runners, but install is harmless if you prefer:
-          # brew install cmake ninja llvm
-          brew install --force-bottle opencv
+          brew install --force-bottle llvm opencv
+          echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
           brew link --overwrite opencv
+
 
 
 
