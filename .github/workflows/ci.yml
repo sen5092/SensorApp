@@ -144,4 +144,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Sensor-release
-          path: build/release/Sensor
+          path: build/release/src/Sensor
