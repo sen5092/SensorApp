@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop, feature/**, chore/** ]
+    branches: [ main, develop, dev, chore/**, feature/** ]
   pull_request:
     branches: [ main ]
 
@@ -24,7 +24,7 @@ jobs:
           key: macos-brew-bottles-${{ runner.os }}-v1
           restore-keys: macos-brew-bottles-
 
-      # --- Install dependencies (no auto update) ---
+      # --- Install dependencies ---
       - name: Install dependencies
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
@@ -49,21 +49,34 @@ jobs:
       - name: Build SensorTests
         run: cmake --build --preset test --target SensorTests -j$(sysctl -n hw.logicalcpu)
 
-      # --- Run tests with Catch2 ---
-      - name: Run unit tests
-        working-directory: build/test
-        run: ctest --output-on-failure -V
+      # --- Run tests with coverage instrumentation ---
+      - name: Run unit tests with coverage
+        working-directory: ${{ github.workspace }}/build/test
+        env:
+          LLVM_PROFILE_FILE: "${{ github.workspace }}/build/test/coverage_%p.profraw"
+        run: |
+          echo "==> Running SensorTests with coverage enabled"
+          ./tests/SensorTests --order rand --success --durations yes --use-colour yes
 
-      # --- Generate HTML coverage summary ---
+      # --- Debug: confirm raw profiles exist ---
+      - name: Debug coverage output files
+        run: |
+          echo "==> Checking for raw coverage profiles"
+          ls -lh ${{ github.workspace }}/build/test || true
+
+      # --- Merge and generate HTML coverage summary ---
       - name: Generate coverage report
-        working-directory: build/test
+        working-directory: ${{ github.workspace }}/build/test
         run: |
           echo "==> Merging raw profiles"
-          llvm-profdata merge -sparse coverage_*.profraw -o coverage.profdata || true
+          llvm-profdata merge -sparse "${{ github.workspace }}/build/test"/coverage_*.profraw \
+            -o "${{ github.workspace }}/build/test/coverage.profdata" || true
+
           echo "==> Generating HTML coverage summary"
-          llvm-cov show ./SensorTests \
-            -instr-profile=coverage.profdata \
-            -format=html -output-dir=coverage-report \
+          llvm-cov show "${{ github.workspace }}/build/test/tests/SensorTests" \
+            -instr-profile="${{ github.workspace }}/build/test/coverage.profdata" \
+            -format=html \
+            -output-dir="${{ github.workspace }}/build/test/coverage-report" \
             -ignore-filename-regex='external/*' \
             -Xdemangler=llvm-cxxfilt || true
 
@@ -72,4 +85,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: build/test/coverage-report
+          path: ${{ github.workspace }}/build/test/coverage-report
