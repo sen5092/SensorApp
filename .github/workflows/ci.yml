@@ -139,9 +139,13 @@ jobs:
       - name: Build Sensor (Release)
         run: cmake --build --preset release --target Sensor -j$(sysctl -n hw.logicalcpu)
 
+      - name: Verify built binaries
+        run: ls -lh ${{ github.workspace }}/build/release/src || true
+
       # --- Upload built release binary as artifact ---
       - name: Upload release binary
         uses: actions/upload-artifact@v4
         with:
           name: Sensor-release
-          path: build/release/src/Sensor
+          path: ${{ github.workspace }}/build/release/src/Sensor
+          if-no-files-found: error
