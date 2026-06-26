@@ -53,7 +53,10 @@ target_include_directories(SensorLib SYSTEM PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(SensorLib PRIVATE ${OpenCV_LIBS})
 target_link_libraries(SensorLib PRIVATE nlohmann_json::nlohmann_json)
 enable_strict_warnings(SensorLib)
-enable_sanitizers(SensorLib)
+# Sanitizers are intentionally NOT applied to SensorLib. Applying them to a
+# static library forces every consumer (including SensorTests) to also link the
+# sanitizer runtime. Instead we apply them only to the final executables so each
+# binary can opt in independently.
 enable_coverage(SensorLib)
 
 

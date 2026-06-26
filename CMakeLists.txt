@@ -57,9 +57,20 @@ function(enable_sanitizers target_name)
             -fno-omit-frame-pointer
         )
 
+        # On macOS the sanitizer runtime dylibs live inside the compiler's
+        # resource directory. We resolve it at configure time and pass it
+        # explicitly as a search path so the linker can find the dylib.
+        execute_process(
+            COMMAND ${CMAKE_CXX_COMPILER} -print-resource-dir
+            OUTPUT_VARIABLE LLVM_RESOURCE_DIR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        set(_san_lib_dir "${LLVM_RESOURCE_DIR}/lib/darwin")
+
         target_link_options(${target_name} PRIVATE
             -fsanitize=address,undefined
             -fno-omit-frame-pointer
+            -L${_san_lib_dir}
         )
     endif()
 endfunction()
