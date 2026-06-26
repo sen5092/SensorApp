@@ -1,4 +1,5 @@
 #pragma once
+#include "ICamera.hpp"
 #include <opencv2/core/mat.hpp>
 #include <opencv2/videoio.hpp>
 #include <vector>

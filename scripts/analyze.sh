@@ -5,7 +5,7 @@ set -Eeuo pipefail
 # Default options
 RUN_TIDY=false
 RUN_CSA=false
-BUILD_DIR="build"
+BUILD_DIR="build/release"
 REPORT_DIR="build/reports"
 
 # Create output directory
@@ -50,7 +50,7 @@ if [ "$RUN_TIDY" = true ]; then
     # Overwrite the report; capture both stdout and stderr
     clang-tidy $FILES -p "$BUILD_DIR" \
       -extra-arg=-fno-color-diagnostics \
-      -header-filter='^/Users/scottnovak/Projects/SensorApp/(src|include)/' \
+      -header-filter='^.*(src|include)/' \
       > "$REPORT_DIR/clang-tidy.txt" 2>&1
 
 
